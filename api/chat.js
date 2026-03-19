@@ -8,11 +8,11 @@ export default async function handler(req, res) {
     body: JSON.stringify({
       model: "gpt-4o-mini",
       messages: req.body.messages,
-      stream: true, // This is the secret sauce
+      stream: true, // Tells OpenAI to send words one by one
     }),
   });
 
-  // This pipes the OpenAI stream directly to Haim's browser
+  // Set headers to keep the connection open
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    res.write(value);
+    res.write(value); // Pushes the chunk to the browser immediately
   }
   res.end();
 }

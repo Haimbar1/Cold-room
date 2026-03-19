@@ -1268,11 +1268,7 @@ export default function App() {
         {/* ─── AI ─── */}
         {tab === "ai" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* SmartInsights — full width on top */}
-            <div style={{ ...card }}>
-              <SmartInsights loggers={loggers} elements={elements} timeData={timeData} room={room} tempRange={tr} lang={lang} onInsights={setSharedInsights} />
-            </div>
-            {/* Chat — full width below */}
+                        {/* Chat — full width below */}
             <div style={{ ...card, minHeight: 480 }}>
               <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.aiExpert}</h3>
               <AIChat loggers={loggers} elements={elements} timeData={timeData} frameIdx={frameIdx} room={room} tempRange={tr} lang={lang} sharedInsights={sharedInsights} />

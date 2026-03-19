@@ -607,32 +607,34 @@ function SmartInsights({ loggers, elements, timeData, room, tempRange, lang, onI
     return "COLD ROOM STATISTICAL SUMMARY\nRoom: " + room.w + "x" + room.d + "x" + room.h + "m | OK range: " + tempRange.min + "-" + tempRange.max + "C | Doors: " + doors + "\n\nPer-sensor stats:\n" + sensorLines + "\n\n" + langNote;
   }
 
-  async function fetchInsights() {
+
+
+async function fetchInsights() {
     setLoading(true); setError(false); setInsights(null);
-    const langNote = lang === "pt" ? "Respond in Brazilian Portuguese." : lang === "he" ? "Respond in Hebrew (use RTL-friendly formatting)." : "Respond in English.";
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1200,
-          system: `You are an industrial cold room AI analyst. Given statistical sensor data, produce exactly 4 insight cards in this JSON format (no markdown, pure JSON array):
-[
-  { "icon": "🔧", "category": "Predictive Maintenance", "finding": "one sentence observation", "conclusion": "one sentence actionable recommendation", "severity": "ok|warn|critical" },
-  { "icon": "🚪", "category": "Door / Operational Efficiency", "finding": "...", "conclusion": "...", "severity": "ok|warn|critical" },
-  { "icon": "⏱", "category": "Survival Forecast", "finding": "...", "conclusion": "...", "severity": "ok|warn|critical" },
-  { "icon": "⚡", "category": "Defrost / Energy Optimization", "finding": "...", "conclusion": "...", "severity": "ok|warn|critical" }
-]
-Base insights on the statistical data provided. Be specific with numbers. ${langNote}`,
-          messages: [{ role: "user", content: buildStatsContext() }]
+          jsonMode: true,
+          messages: [
+            { role: "system", content: "You are an industrial cold room analyst. Return ONLY a JSON array of 4 objects with: icon, category, finding, conclusion, severity (ok|warn|critical)." },
+            { role: "user", content: buildStatsContext() }
+          ]
         })
       });
       const d = await res.json();
-      const raw = d.content?.find(b => b.type === "text")?.text ?? "[]";
-      const clean = raw.replace(new RegExp("^```json\\s*|^```\\s*|```\\s*$", "gm"), "").trim();
-      const parsed = JSON.parse(clean); setInsights(parsed); if (onInsights) onInsights(parsed);
+      const parsed = JSON.parse(d.choices[0].message.content);
+      // If OpenAI wraps it in a root object like { "insights": [...] }
+      const finalData = Array.isArray(parsed) ? parsed : (parsed.insights || []);
+      setInsights(finalData); 
+      if (onInsights) onInsights(finalData);
     } catch(e) { setError(true); }
     setLoading(false);
   }
+
+
+  
 
   useEffect(() => { if (timeData && loggers.length) fetchInsights(); }, [lang]);
 
@@ -876,16 +878,29 @@ Always give: 1) observation from data, 2) probable cause, 3) recommended action.
     ? systemPromptBase + " ענה בעברית. השתמש במינוח מקצועי."
     : systemPromptBase + " Respond in English.";
 
-  async function send(text) {
+
+async function send(text) {
     const msg = text ?? inp.trim(); if (!msg) return;
-    setInp(""); const h = [...msgs, { role: "user", content: msg }]; setMsgs(h); setBusy(true);
+    setInp(""); 
+    const h = [...msgs, { role: "user", content: msg }]; 
+    setMsgs(h); 
+    setBusy(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1200, system: systemPrompt + "\n\nRoom data: " + ctx(), messages: h.map(m => ({ role: m.role, content: m.content })) }) });
-      const d = await res.json(); const reply = d.content?.find(b => b.type === "text")?.text ?? "Error";
+      const res = await fetch("/api/chat", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ messages: h }) 
+      });
+      const d = await res.json(); 
+      const reply = d.choices[0].message.content;
       setMsgs([...h, { role: "assistant", content: reply }]);
-    } catch { setMsgs([...h, { role: "assistant", content: "Connection error" }]); }
+    } catch { 
+      setMsgs([...h, { role: "assistant", content: "Connection error" }]); 
+    }
     setBusy(false);
   }
+
+  
   useEffect(() => { ref.current?.scrollTo(0, ref.current.scrollHeight); }, [msgs]);
 
   return (

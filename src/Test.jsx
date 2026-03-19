@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Settings, Thermometer, Snowflake, DoorOpen, Brain, Send, Copy, Check, ChevronLeft, ChevronRight, Maximize2, Minimize2, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 

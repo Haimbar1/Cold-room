@@ -882,24 +882,50 @@ Always give: 1) observation from data, 2) probable cause, 3) recommended action.
 async function send(text) {
     const msg = text ?? inp.trim(); if (!msg) return;
     setInp(""); 
-    const h = [...msgs, { role: "user", content: msg }]; 
-    setMsgs(h); 
+    const newMsgs = [...msgs, { role: "user", content: msg }]; 
+    setMsgs(newMsgs); 
     setBusy(true);
+
+    // Create a placeholder for the AI's response
+    setMsgs(prev => [...prev, { role: "assistant", content: "" }]);
+
     try {
       const res = await fetch("/api/chat", { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ messages: h }) 
+        body: JSON.stringify({ messages: newMsgs }) 
       });
-      const d = await res.json(); 
-      const reply = d.choices[0].message.content;
-      setMsgs([...h, { role: "assistant", content: reply }]);
-    } catch { 
-      setMsgs([...h, { role: "assistant", content: "Connection error" }]); 
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let finishedText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        
+        for (const line of lines) {
+          if (line.startsWith("data: ") && line !== "data: [DONE]") {
+            const json = JSON.parse(line.replace("data: ", ""));
+            const content = json.choices[0].delta?.content || "";
+            finishedText += content;
+            
+            // Update the message in real-time
+            setMsgs(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1].content = finishedText;
+              return updated;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Streaming error", e);
     }
     setBusy(false);
   }
-
   
   useEffect(() => { ref.current?.scrollTo(0, ref.current.scrollHeight); }, [msgs]);
 

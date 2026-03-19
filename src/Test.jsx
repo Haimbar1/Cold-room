@@ -878,54 +878,58 @@ Always give: 1) observation from data, 2) probable cause, 3) recommended action.
     ? systemPromptBase + " ענה בעברית. השתמש במינוח מקצועי."
     : systemPromptBase + " Respond in English.";
 
-
+// Replace your current send function with this logic
 async function send(text) {
-    const msg = text ?? inp.trim(); if (!msg) return;
-    setInp(""); 
-    const newMsgs = [...msgs, { role: "user", content: msg }]; 
-    setMsgs(newMsgs); 
-    setBusy(true);
+  const msg = text ?? inp.trim(); 
+  if (!msg) return;
+  setInp(""); 
+  const newMsgs = [...msgs, { role: "user", content: msg }]; 
+  setMsgs(newMsgs); 
+  setBusy(true);
 
-    // Create a placeholder for the AI's response
-    setMsgs(prev => [...prev, { role: "assistant", content: "" }]);
+  // Add an empty assistant message to fill up as we stream
+  setMsgs(prev => [...prev, { role: "assistant", content: "" }]);
 
-    try {
-      const res = await fetch("/api/chat", { 
-        method: "POST", 
-        headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ messages: newMsgs }) 
-      });
+  try {
+    const res = await fetch("/api/chat", { 
+      method: "POST", 
+      headers: { "Content-Type": "application/json" }, 
+      body: JSON.stringify({ messages: newMsgs }) 
+    });
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let finishedText = "";
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let streamedContent = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-        
-        for (const line of lines) {
-          if (line.startsWith("data: ") && line !== "data: [DONE]") {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n");
+      
+      for (const line of lines) {
+        if (line.startsWith("data: ") && line !== "data: [DONE]") {
+          try {
             const json = JSON.parse(line.replace("data: ", ""));
             const content = json.choices[0].delta?.content || "";
-            finishedText += content;
+            streamedContent += content;
             
-            // Update the message in real-time
+            // Update the UI in real-time
             setMsgs(prev => {
               const updated = [...prev];
-              updated[updated.length - 1].content = finishedText;
+              updated[updated.length - 1].content = streamedContent;
               return updated;
             });
-          }
+          } catch (e) { /* ignore partial chunks */ }
         }
       }
-    } catch (e) {
-      console.error("Streaming error", e);
     }
-    setBusy(false);
+  } catch (err) {
+    console.error("Stream failed", err);
   }
+  setBusy(false);
+}
   
   useEffect(() => { ref.current?.scrollTo(0, ref.current.scrollHeight); }, [msgs]);
 

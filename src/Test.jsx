@@ -8,6 +8,23 @@ import {
 // Rest of your code starts here...
 
 // ─── Markdown renderer ───────────────────────────────────────────────────────
+
+function buildStatsContext(loggers, timeData, room, tr) {
+  try {
+    const stats = loggers.map(lg => {
+      const series = timeData[lg.id] || [];
+      if (!series.length) return null;
+      const sample = series.slice(-60); // Last hour of data
+      const avg = (sample.reduce((a, b) => a + b.temp, 0) / sample.length).toFixed(2);
+      const mx = Math.max(...sample.map(r => r.temp));
+      const mn = Math.min(...sample.map(r => r.temp));
+      return `Sensor ${lg.id} (${lg.name}): Avg: ${avg}°C, Max: ${mx}°C, Min: ${mn}°C`;
+    }).filter(Boolean).join('\n');
+    return `Room ${room.w}x${room.d}m. Range ${tr.min}-${tr.max}°C.\n${stats}`;
+  } catch (e) { return "Data error"; }
+}
+
+
 function Markdown({ text, isRtl }) {
   const lines = text.split("\n");
   const elements = [];
@@ -547,9 +564,124 @@ function SmartInsights({ loggers, timeData, room, tempRange, lang }) {
 
   const isRtl = lang === "he";
 
+  const fetchCat = async (catName) => {
+    const context = buildStatsContext(loggers, timeData, room, tempRange);
+    if (!context || context.length < 10) return;
+
+    setInsights(prev => prev.map(i => i.category === catName ? { ...i, loading: true } : i));
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonMode: true,
+          messages: [
+            { role: "system", content: `Return ONLY a JSON object: {"finding": "...", "conclusion": "...", "severity": "ok"|"warn"|"critical"}. Topic: ${catName}` },
+            { role: "user", content: context }
+          ]
+        })
+      });
+
+      const d = await res.json();
+      const result = JSON.parse(d.choices[0].message.content);
+
+      setInsights(prev => prev.map(i => i.category === catName ? { ...i, ...result, loading: false } : i));
+    } catch (e) {
+      setInsights(prev => prev.map(i => i.category === catName ? { ...i, loading: false, finding: "Analysis error." } : i));
+    }
+  };
+
+  useEffect(() => {
+    const runAll = async () => {
+      // THE DOMINO EFFECT: One by one to avoid Vercel timeouts
+      for (const ins of insights) {
+        if (!ins.finding && !ins.loading) {
+          await fetchCat(ins.category);
+        }
+      }
+    };
+    if (timeData && Object.keys(timeData).length > 0) {
+      runAll();
+    }
+  }, [timeData]);
+
+  const sevColor = { 
+    ok: { bg: "#f0fff4", border: "#6dca8a", label: "#2a6a40" }, 
+    warn: { bg: "#fffbeb", border: "#f0c040", label: "#806010" }, 
+    critical: { bg: "#fff0f0", border: "#e08080", label: "#a01010" } 
+  };
+
+  return (
+    <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
+      <h3 style={{ margin: "0 0 14px 0", color: "#1a3a7a", fontSize: 15, fontWeight: 700 }}>
+        {isRtl ? "🤖 SmartInsights — תובנות חכמות" : lang === "pt" ? "🤖 SmartInsights — Resumo Inteligente" : "🤖 SmartInsights — Intelligent Summary"}
+      </h3>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+        {insights.map((ins, i) => {
+          const s = sevColor[ins.severity] || sevColor.ok;
+          return (
+            <div key={i} style={{ 
+              background: s.bg, 
+              border: `1.5px solid ${s.border}`, 
+              borderRadius: 10, 
+              padding: "12px",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.02)"
+            }}>
+              <div style={{ 
+                fontWeight: 700, 
+                fontSize: 11, 
+                color: s.label, 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 5,
+                textTransform: "uppercase" 
+              }}>
+                <span>{ins.icon}</span> {ins.category}
+              </div>
+              
+              {ins.loading ? (
+                <div style={{ fontSize: 12, color: "#90a8c0", marginTop: 8 }}>
+                   <span style={{ display: "inline-block", animation: "spin 1s linear infinite", marginInlineEnd: 8 }}>⟳</span>
+                   {isRtl ? "מנתח..." : lang === "pt" ? "Analisando..." : "Analyzing..."}
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 13, marginTop: 5, color: "#2a3a50", lineHeight: 1.5 }}>
+                    {ins.finding || (isRtl ? "ממתין לנתונים..." : "Waiting for data...")}
+                  </div>
+                  {ins.conclusion && (
+                    <div style={{ 
+                      fontSize: 11, 
+                      marginTop: 8, 
+                      borderTop: `1px solid ${s.border}`, 
+                      paddingTop: 8, 
+                      fontWeight: 600,
+                      color: s.label 
+                    }}>
+                      {isRtl ? "← מסקנה: " : "→ "} {ins.conclusion}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+  const isRtl = lang === "he";
+
   // Function to fetch just one category
-  const fetchSingleCategory = async (categoryName) => {
-    // 1. Mark this specific card as loading
+const fetchSingleCategory = async (categoryName) => {
+    // 1. Safety Check: If data isn't ready, don't even try
+    const context = buildStatsContext();
+    if (!context || context.length < 10) {
+      console.log("Context not ready for:", categoryName);
+      return; 
+    }
+
     setInsights(prev => prev.map(ins => 
       ins.category === categoryName ? { ...ins, loading: true } : ins
     ));
@@ -561,25 +693,48 @@ function SmartInsights({ loggers, timeData, room, tempRange, lang }) {
         body: JSON.stringify({
           jsonMode: true,
           messages: [
-            { role: "system", content: `You are a cold room expert. Analyze data ONLY for ${categoryName}. Return ONLY a JSON object: {"finding": "...", "conclusion": "...", "severity": "ok"|"warn"|"critical"}` },
-            { role: "user", content: buildStatsContext() }
+            { role: "system", content: `Return ONLY a JSON object: {"finding": "...", "conclusion": "...", "severity": "ok"}. Topic: ${categoryName}` },
+            { role: "user", content: context }
           ]
         })
       });
+
+      if (!res.ok) throw new Error("Server error");
+      
       const d = await res.json();
       const result = JSON.parse(d.choices[0].message.content);
 
-      // 2. Update just this card with the result
       setInsights(prev => prev.map(ins => 
         ins.category === categoryName ? { ...ins, ...result, loading: false } : ins
       ));
     } catch (e) {
+      console.error("Fetch Error for", categoryName, e);
       setInsights(prev => prev.map(ins => 
-        ins.category === categoryName ? { ...ins, loading: false, finding: "Analysis timeout or error." } : ins
+        ins.category === categoryName ? { ...ins, loading: false, finding: "Analysis error. Check console." } : ins
       ));
     }
   };
 
+  // NEW: The Sequential "Domino" Effect
+  const runSequential = async () => {
+    // This waits for the first to finish before starting the second
+    await fetchSingleCategory("Predictive Maintenance");
+    await fetchSingleCategory("Door Efficiency");
+    await fetchSingleCategory("Survival Forecast");
+    await fetchSingleCategory("Energy Optimization");
+  };
+
+  useEffect(() => {
+    // Only trigger if we actually have data to analyze
+    if (timeData && Object.keys(timeData).length > 0) {
+      runSequential();
+    }
+  }, [timeData]);
+  
+
+
+  
+  
   // NEW: Function to run them in order (1 -> 2 -> 3 -> 4)
   const runSequentialInsights = async () => {
     // We use a simple for-loop because 'await' works inside it
@@ -824,114 +979,38 @@ Always give: 1) observation from data, 2) probable cause, 3) recommended action.
 
 // Replace your current send function with this logic
 async function send(text) {
-  const msg = text ?? inp.trim(); 
-  if (!msg) return;
-  setInp(""); 
-  const newMsgs = [...msgs, { role: "user", content: msg }]; 
-  setMsgs(newMsgs); 
-  setBusy(true);
-
-  // Add an empty assistant message to fill up as we stream
-  setMsgs(prev => [...prev, { role: "assistant", content: "" }]);
-
-  try {
-    const res = await fetch("/api/chat", { 
-      method: "POST", 
-      headers: { "Content-Type": "application/json" }, 
-      body: JSON.stringify({ messages: newMsgs }) 
-    });
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let streamedContent = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value);
-      const lines = chunk.split("\n");
-      
-      for (const line of lines) {
-        if (line.startsWith("data: ") && line !== "data: [DONE]") {
-          try {
-            const json = JSON.parse(line.replace("data: ", ""));
-            const content = json.choices[0].delta?.content || "";
-            streamedContent += content;
-            
-            // Update the UI in real-time
-            setMsgs(prev => {
-              const updated = [...prev];
-              updated[updated.length - 1].content = streamedContent;
-              return updated;
-            });
-          } catch (e) { /* ignore partial chunks */ }
+    const msg = text ?? inp.trim(); if (!msg || busy) return;
+    setInp(""); setBusy(true);
+    const history = [...msgs, { role: "user", content: msg }];
+    setMsgs([...history, { role: "assistant", content: "" }]);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history, stream: true })
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let streamedContent = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter(l => l.startsWith("data: ") && l !== "data: [DONE]");
+        for (const line of lines) {
+          const json = JSON.parse(line.replace("data: ", ""));
+          streamedContent += json.choices[0].delta?.content || "";
+          setMsgs(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1].content = streamedContent;
+            return updated;
+          });
         }
       }
-    }
-  } catch (err) {
-    console.error("Stream failed", err);
+    } catch (e) { console.error("Stream failed", e); }
+    setBusy(false);
   }
-  setBusy(false);
-}
   
-  useEffect(() => { ref.current?.scrollTo(0, ref.current.scrollHeight); }, [msgs]);
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, height: "100%", direction: isRtl ? "rtl" : "ltr" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {t.quickQ.map((q, i) => (
-          <button key={i} onClick={() => send(q)} style={{ background: "#f0f5ff", border: "1px solid #b8ccea", color: "#3060a0", borderRadius: 20, padding: "5px 13px", fontSize: 11, cursor: "pointer", lineHeight: 1.4, textAlign: isRtl ? "right" : "left" }}>{q}</button>
-        ))}
-      </div>
-      <div ref={ref} style={{ flex: 1, overflowY: "auto", padding: 14, background: "#f8fafd", borderRadius: 10, border: "1px solid #d0dcea", minHeight: 220, maxHeight: 360 }}>
-        {!msgs.length && <div style={{ color: "#a0b8d0", fontSize: 13, textAlign: "center", marginTop: 60 }}>{t.noMessages}</div>}
-        {msgs.map((m, i) => (
-          <div key={i} style={{ marginBottom: 14, display: "flex", justifyContent: m.role === "user" ? (isRtl ? "flex-start" : "flex-end") : (isRtl ? "flex-end" : "flex-start") }}>
-            <div style={{ maxWidth: "88%", padding: "10px 15px", borderRadius: 12, fontSize: 13, background: m.role === "user" ? "#e8f0ff" : "#fff", color: m.role === "user" ? "#1a3a7a" : "#2a3a50", border: `1px solid ${m.role === "user" ? "#b0c8f0" : "#d8e4f0"}`, boxShadow: "0 1px 4px rgba(100,140,200,0.1)" }}>
-              {m.role === "user"
-                ? <div style={{ direction: isRtl ? "rtl" : "ltr", lineHeight: 1.6 }}>{m.content}</div>
-                : <Markdown text={m.content} isRtl={isRtl} />}
-            </div>
-          </div>
-        ))}
-        {busy && <div style={{ color: "#5080c0", fontSize: 12, textAlign: "center" }}>{t.analyzing}</div>}
-
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input value={inp} onChange={e => setInp(e.target.value)} onKeyDown={e => e.key === "Enter" && !busy && send()}
-          placeholder={t.askPlaceholder} dir={isRtl ? "rtl" : "ltr"}
-          style={{ flex: 1, background: "#fff", border: "1.5px solid #b0c8e8", color: "#1a2a50", borderRadius: 8, padding: "9px 14px", fontSize: 13, outline: "none" }} />
-        <Tooltip text={lang === "pt" ? "Enviar mensagem" : lang === "he" ? "שלח הודעה" : "Send message"}>
-          <button onClick={() => send()} disabled={busy}
-            style={{ background: busy ? "#c0d0f0" : "#2050c0", border: "none", color: "#fff", borderRadius: 8, width: 40, height: 40, cursor: busy ? "not-allowed" : "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.2s" }}>
-            {busy
-              ? <span style={{ fontSize: 16, animation: "spin 0.8s linear infinite", display: "inline-block" }}>⟳</span>
-              : <span style={{ transform: isRtl ? "scaleX(-1)" : "none", display: "inline-block" }}>➤</span>}
-          </button>
-        </Tooltip>
-        <Tooltip text={copied
-          ? (lang === "pt" ? "Copiado!" : lang === "he" ? "הועתק!" : "Copied!")
-          : (lang === "pt" ? "Copiar como HTML (cole no email)" : lang === "he" ? "העתק כ-HTML (הדבק במייל)" : "Copy as HTML — paste into email")}>
-          <button onClick={copyChat} disabled={msgs.length === 0}
-            style={{ background: copied ? "#e8fff0" : "#f0f4ff", border: copied ? "1.5px solid #5cb85c" : "1.5px solid #c0d4f0", borderRadius: 8, width: 40, height: 40, cursor: msgs.length === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s", padding: 0 }}>
-            {copied
-              ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2a8040" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={msgs.length === 0 ? "#b0c0d8" : "#3060b0"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-            }
-          </button>
-        </Tooltip>
-
-      </div>
-
-
-    </div>
-  );
-}
-
 // ─── Legend ───────────────────────────────────────────────────────────────────
 function Legend({ lo, hi, t }) {
   return (

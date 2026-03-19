@@ -7,7 +7,7 @@ export default async function handler(req, res) {
         "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o", // The latest OpenAI model
+        model: "gpt-4o-mini", // The latest OpenAI model
         messages: req.body.messages,
         // If it's the Insights call, we want JSON mode
         ...(req.body.jsonMode && { response_format: { type: "json_object" } })

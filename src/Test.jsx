@@ -732,27 +732,57 @@ const fetchSingleCategory = async (categoryName) => {
   }, [timeData]);
   
 
+// 1. The Fetcher
+  const fetchSingleCategory = async (categoryName) => {
+    const context = buildStatsContext(loggers, timeData, room, tempRange);
+    if (!context || context.length < 10) return;
 
-  
-  
-  // NEW: Function to run them in order (1 -> 2 -> 3 -> 4)
+    setInsights(prev => prev.map(ins => 
+      ins.category === categoryName ? { ...ins, loading: true } : ins
+    ));
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonMode: true,
+          messages: [
+            { role: "system", content: `Return ONLY a JSON object: {"finding": "...", "conclusion": "...", "severity": "ok"|"warn"|"critical"}. Topic: ${categoryName}` },
+            { role: "user", content: context }
+          ]
+        })
+      });
+
+      const d = await res.json();
+      const result = JSON.parse(d.choices[0].message.content);
+
+      setInsights(prev => prev.map(ins => 
+        ins.category === categoryName ? { ...ins, ...result, loading: false } : ins
+      ));
+    } catch (e) {
+      console.error("Fetch Error:", e);
+      setInsights(prev => prev.map(ins => 
+        ins.category === categoryName ? { ...ins, loading: false, finding: "Error." } : ins
+      ));
+    }
+  }; // <--- Fixed this bracket
+
+  // 2. The Sequential Logic
   const runSequentialInsights = async () => {
-    // We use a simple for-loop because 'await' works inside it
     for (const ins of insights) {
-      // Skip if it already has data (unless you want to force refresh)
-      if (!ins.finding) {
+      if (!ins.finding && !ins.loading) {
         await fetchSingleCategory(ins.category);
       }
     }
   };
-  
+
+  // 3. The Effect
   useEffect(() => {
-    if (timeData && loggers.length) {
+    if (timeData && Object.keys(timeData).length > 0) {
       runSequentialInsights();
     }
-  }, [timeData, loggers.length]); // Triggers when data is ready
-
-  
+  }, [timeData]);
 
   const sevColor = { 
     ok: { bg: "#f0fff4", border: "#6dca8a", label: "#2a6a40" }, 
@@ -760,6 +790,7 @@ const fetchSingleCategory = async (categoryName) => {
     critical: { bg: "#fff0f0", border: "#e08080", label: "#a01010" } 
   };
 
+  // 4. The Return UI
   return (
     <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
       <h3 style={{ margin: "0 0 14px 0", color: "#1a3a7a", fontSize: 15, fontWeight: 700 }}>
@@ -794,6 +825,8 @@ const fetchSingleCategory = async (categoryName) => {
     </div>
   );
 }
+  
+ 
 
 // ─── Tooltip ─────────────────────────────────────────────────────────────────
 function Tooltip({ text, children }) {

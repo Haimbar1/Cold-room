@@ -537,7 +537,6 @@ function Placer({ loggers, setLoggers, elements, setElements, room, lang }) {
   );
 }
 
-
 function SmartInsights({ loggers, elements, timeData, room, tempRange, lang }) {
   const [insights, setInsights] = useState([
     { icon: "🔧", category: "Predictive Maintenance", severity: "ok", loading: false },

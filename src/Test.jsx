@@ -580,12 +580,24 @@ function SmartInsights({ loggers, timeData, room, tempRange, lang }) {
     }
   };
 
-  // Trigger all 4 in parallel on load
+  // NEW: Function to run them in order (1 -> 2 -> 3 -> 4)
+  const runSequentialInsights = async () => {
+    // We use a simple for-loop because 'await' works inside it
+    for (const ins of insights) {
+      // Skip if it already has data (unless you want to force refresh)
+      if (!ins.finding) {
+        await fetchSingleCategory(ins.category);
+      }
+    }
+  };
+  
   useEffect(() => {
     if (timeData && loggers.length) {
-      insights.forEach(ins => fetchSingleCategory(ins.category));
+      runSequentialInsights();
     }
-  }, [lang]);
+  }, [timeData, loggers.length]); // Triggers when data is ready
+
+  
 
   const sevColor = { 
     ok: { bg: "#f0fff4", border: "#6dca8a", label: "#2a6a40" }, 

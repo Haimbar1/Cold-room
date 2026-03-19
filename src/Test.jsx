@@ -1,4 +1,8 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { 
+  Settings, Thermometer, Snowflake, DoorOpen, Brain, 
+  Send, Copy, Check, ChevronLeft, ChevronRight, 
+  Maximize2, Minimize2, Play, Pause, SkipBack, SkipForward 
+} from 'lucide-react';
 
 // ─── Markdown renderer ───────────────────────────────────────────────────────
 function Markdown({ text, isRtl }) {
@@ -31,37 +35,25 @@ function Markdown({ text, isRtl }) {
       while (i < lines.length && /^[\*\-•]\s/.test(lines[i])) { items.push(<li key={i} style={{ marginBottom: 3, paddingInlineStart: 4 }}>{parseInline(lines[i].replace(/^[\*\-•]\s/, ""))}</li>); i++; }
       elements.push(<ul key={"ul" + i} style={{ margin: "4px 0", paddingInlineStart: 20, listStyleType: "disc" }}>{items}</ul>); continue;
     }
-    if (/^\d+\.\s/.test(line)) {
-      const items = [];
-      while (i < lines.length && /^\d+\.\s/.test(lines[i])) { items.push(<li key={i} style={{ marginBottom: 3, paddingInlineStart: 4 }}>{parseInline(lines[i].replace(/^\d+\.\s/, ""))}</li>); i++; }
-      elements.push(<ol key={"ol" + i} style={{ margin: "4px 0", paddingInlineStart: 22 }}>{items}</ol>); continue;
-    }
     if (line.includes("|")) {
       const tableLines = [];
       while (i < lines.length && lines[i].includes("|")) { tableLines.push(lines[i]); i++; }
       const dataRows = tableLines.filter(l => !/^\s*\|?\s*[-:]+\s*\|/.test(l));
-      const isHeader = tableLines.length > 1 && /^\s*\|?\s*[-:]+\s*\|/.test(tableLines[1]);
       elements.push(
         <div key={"tbl" + i} style={{ overflowX: "auto", margin: "8px 0" }}>
           <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
             <tbody>
-              {dataRows.map((row, ri) => {
-                const cells = row.split("|").map(c => c.trim()).filter((c, ci, arr) => ci > 0 && ci < arr.length - 1 || c !== "");
-                const isHdr = isHeader && ri === 0;
-                return (
-                  <tr key={ri} style={{ background: ri % 2 === 0 ? "#f8fafd" : "#fff" }}>
-                    {cells.map((cell, ci) => {
-                      const Tag = isHdr ? "th" : "td";
-                      return <Tag key={ci} style={{ border: "1px solid #d0dcea", padding: "5px 10px", textAlign: "left", fontWeight: isHdr ? 700 : 400, color: isHdr ? "#1a3a7a" : "#2a3a50", background: isHdr ? "#eef3fb" : "transparent", whiteSpace: "nowrap" }}>{parseInline(cell)}</Tag>;
-                    })}
-                  </tr>
-                );
-              })}
+              {dataRows.map((row, ri) => (
+                <tr key={ri} style={{ background: ri % 2 === 0 ? "#f8fafd" : "#fff" }}>
+                  {row.split("|").filter(c => c.trim()).map((cell, ci) => (
+                    <td key={ci} style={{ border: "1px solid #d0dcea", padding: "5px 10px" }}>{parseInline(cell)}</td>
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-      );
-      continue;
+      ); continue;
     }
     elements.push(<p key={i} style={{ margin: "2px 0", lineHeight: 1.7 }}>{parseInline(line)}</p>);
     i++;
@@ -89,16 +81,7 @@ const T = {
     sendBtn: "Enviar", askPlaceholder: "Faça uma pergunta sobre a câmara...",
     noMessages: "❄ Faça uma pergunta ou escolha uma sugestão acima", analyzing: "⟳ Analisando...",
     door: "Porta", evap: "Evaporador",
-    quickQ: [
-      "📈 Tendência 7 dias: o tempo de trabalho do compressor aumentou vs. média mensal?",
-      "🔍 Deriva de sensor: algum sensor mostra linha reta sem variação? (possível falha)",
-      "💧 Vazamento de gás lento: ciclo do compressor ficou mais longo nas últimas semanas?",
-      "❄ Evaporador congelado: ventiladores ligados mas temperatura não cai?",
-      "🚪 Porta aberta? Temperatura subiu + umidade saltou nos últimos 30 minutos?",
-      "⚡ Defrost: ciclo pulando ou frequente demais? (mais de 1×/hora = desperdício)",
-      "🔮 Previsão: com a taxa de subida atual, em quanto tempo chegamos ao limite crítico?",
-      "🗺 Qual zona é cronicamente mais quente? (comparar média 7 dias por sensor)",
-    ],
+    quickQ: ["📈 Tendência 7 dias", "🔍 Deriva de sensor", "💧 Vazamento de gás", "❄ Evaporador congelado", "🚪 Porta aberta?", "⚡ Defrost", "🔮 Previsão", "🗺 Qual zona é cronicamente mais quente?"],
     roomElements: "Elementos da câmara", addDoor: "➕ Porta", addEvap: "➕ Evaporador",
     elementList: "Elementos posicionados", doorLabel: "Porta", evapLabel: "Evaporador", deleteEl: "✕", locales: "pt-BR",
   },
@@ -120,18 +103,9 @@ const T = {
     sendBtn: "Send", askPlaceholder: "Ask a question about the room...",
     noMessages: "❄ Ask a question or choose a suggestion above", analyzing: "⟳ Analyzing...",
     door: "Door", evap: "Evaporator",
-    quickQ: [
-      "📈 7-day trend: is compressor runtime increasing vs. monthly average?",
-      "🔍 Sensor drift/failure: any sensor showing a flat line with no variation?",
-      "💧 Slow refrigerant leak: has compressor run time grown over past weeks?",
-      "❄ Frozen evaporator? Fans running but temperature not dropping?",
-      "🚪 Door left open? Temp spike + humidity surge in last 30 minutes?",
-      "⚡ Defrost cycle skipping or too frequent? (>1×/hour wastes energy)",
-      "🔮 Predictive: at current temp rise rate, when do we hit critical threshold?",
-      "🗺 Which zone is chronically warmest? (compare 7-day average per sensor)",
-    ],
-    roomElements: "Room elements", addDoor: "➕ Door", addEvap: "➕ Evaporator",
-    elementList: "Placed elements", doorLabel: "Door", evapLabel: "Evaporator", deleteEl: "✕", locales: "en-US",
+    quickQ: ["📈 7-day trend", "🔍 Sensor failure", "💧 Slow refrigerant leak", "❄ Frozen evaporator?", "🚪 Door left open?", "⚡ Defrost cycle", "🔮 Predictive", "🗺 Which zone is chronically warmest?"],
+    roomElements: "Room elements", addDoor: "➕ Door", addEvap: "➕ Evaporador",
+    elementList: "Placed elements", doorLabel: "Door", evapLabel: "Evaporador", deleteEl: "✕", locales: "en-US",
   },
   he: {
     appName: "ניטור חדר קירור", appSub: "מערכת ניטור וניתוח חדרי קירור",
@@ -151,16 +125,7 @@ const T = {
     sendBtn: "שלח", askPlaceholder: "שאל שאלה על החדר...",
     noMessages: "❄ שאל שאלה או בחר הצעה למעלה", analyzing: "⟳ מנתח...",
     door: "דלת", evap: "מאייד",
-    quickQ: [
-      "📈 מגמת 7 ימים: זמן עבודת המדחס עלה ביחס לממוצע החודשי?",
-      "🔍 תקלת חיישן: יש חיישן עם קו ישר ללא תנודות? (כנראה קפוא/מקולקל)",
-      "💧 דליפת גז איטית: מחזור המדחס התארך בשבועות האחרונים?",
-      "❄ מאייד קפוא? מאוורר עובד אבל הטמפרטורה לא יורדת?",
-      "🚪 הדלת נשארה פתוחה? טמפ' עלתה + לחות קפצה ב-30 דקות האחרונות?",
-      "⚡ מחזור הפשרה: מדלג או תכוף מדי? (יותר מפעם לשעה = בזבוז חשמל)",
-      "🔮 תחזית: לפי קצב העלייה הנוכחי, תוך כמה זמן נגיע לסף קריטי?",
-      "🗺 איזה אזור חם כרונית? (השווה ממוצע 7 ימים לכל חיישן)",
-    ],
+    quickQ: ["📈 מגמת 7 ימים", "🔍 תקלת חיישן", "💧 דליפת גז איטית", "❄ מאייד קפוא?", "🚪 הדלת נשארה פתוחה?", "⚡ מחזור הפשרה", "🔮 תחזית", "🗺 איזה אזור חם כרונית?"],
     roomElements: "אלמנטים בחדר", addDoor: "➕ דלת", addEvap: "➕ מאייד",
     elementList: "אלמנטים ממוקמים", doorLabel: "דלת", evapLabel: "מאייד", deleteEl: "✕", locales: "he-IL",
   },
@@ -177,7 +142,7 @@ function loadXLSX() {
   });
 }
 
-// ─── Demo data ────────────────────────────────────────────────────────────────
+// ─── Demo Data ────────────────────────────────────────────────────────────────
 const DEMO_LOGGERS = [
   { id: "7212048", name: "Porta embalagem-Parede",      x: 0.05, y: 0.5,  z: 0.3 },
   { id: "7212033", name: "Prateleira P-Centro",         x: 0.5,  y: 0.5,  z: 0.5 },
@@ -213,7 +178,7 @@ function genDemo(loggers) {
   return data;
 }
 
-// ─── Color helpers ────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function tColor(t, lo, hi, alpha) {
   let r, g, b;
   if (t < lo) { const f = Math.max(0, Math.min(1, (t - (lo - 8)) / 8)); r = 0; g = Math.round(80 + f * 100); b = Math.round(200 + f * 55); }
@@ -221,42 +186,27 @@ function tColor(t, lo, hi, alpha) {
   else { const f = (t - lo) / (hi - lo); r = Math.round(30 + f * 180); g = Math.round(180 - f * 40); b = Math.round(80 - f * 50); }
   return alpha != null ? `rgba(${r},${g},${b},${alpha})` : `rgb(${r},${g},${b})`;
 }
+
 function tArr(t, lo, hi) {
   if (t < lo) { const f = Math.max(0, Math.min(1, (t - (lo - 8)) / 8)); return [0, Math.round(80 + f * 100), Math.round(200 + f * 55)]; }
   if (t > hi) { const f = Math.min(1, (t - hi) / 4); return [Math.round(200 + f * 55), Math.round(120 - f * 100), 20]; }
   const f = (t - lo) / (hi - lo); return [Math.round(30 + f * 180), Math.round(180 - f * 40), Math.round(80 - f * 50)];
 }
 
-// ─── Stats context builder ────────────────────────────────────────────────────
 function buildStatsContext(loggers, timeData, room, tempRange) {
   try {
-    const now = Date.now();
-    const day7 = now - 7 * 24 * 3600000;
-    const day30 = now - 30 * 24 * 3600000;
     const stats = loggers.map(lg => {
       const series = timeData[lg.id] || [];
       if (!series.length) return null;
-      const all = series.map(r => r.temp);
-      const recent7 = series.filter(r => new Date(r.ts).getTime() > day7).map(r => r.temp);
-      const prev30 = series.filter(r => { const t = new Date(r.ts).getTime(); return t > day30 && t <= day7; }).map(r => r.temp);
-      const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-      const variance = arr => { const m = mean(arr); return arr.length && m != null ? arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length : 0; };
-      let crossings = 0;
-      const mid = mean(all) || 0;
-      for (let i = 1; i < all.length; i++) if ((all[i - 1] - mid) * (all[i] - mid) < 0) crossings++;
-      const oscRate = crossings / (all.length || 1);
-      const tail = all.slice(-48);
-      const slope = tail.length > 1 ? (tail[tail.length - 1] - tail[0]) / tail.length : 0;
-      const critical = tempRange.max + 5;
-      const timeToCrit = slope > 0 ? ((critical - (all[all.length - 1] || 0)) / slope) * 15 : null;
-      const m7 = mean(recent7); const m30 = mean(prev30);
-      return "• " + lg.id + ' "' + lg.name + '": now=' + (all[all.length-1]||0).toFixed(2) + "°C | 7d-avg=" + (m7!=null?m7.toFixed(2):"N/A") + "° | 30d-avg=" + (m30!=null?m30.toFixed(2):"N/A") + "° | 7d-variance=" + variance(recent7).toFixed(3) + " | slope=" + slope.toFixed(4) + "°/reading | osc-rate=" + oscRate.toFixed(4) + " | flat-line=" + (variance(recent7) < 0.01) + " | time-to-critical=" + (timeToCrit ? Math.round(timeToCrit) : "N/A") + " min";
-    }).filter(Boolean).join("\n");
-    return "COLD ROOM STATS\nRoom: " + room.w + "x" + room.d + "x" + room.h + "m | OK range: " + tempRange.min + "-" + tempRange.max + "C\n\n" + stats;
+      const sample = series.slice(-60);
+      const avg = (sample.reduce((a, b) => a + b.temp, 0) / sample.length).toFixed(2);
+      return `Logger ${lg.id} (${lg.name}): Avg: ${avg}°C`;
+    }).filter(Boolean).join('\n');
+    return `Cold room ${room.w}x${room.d}m. Range: ${tempRange.min}-${tempRange.max}°C.\n${stats}`;
   } catch(e) { return "Data error"; }
 }
 
-// ─── Heatmap canvas ───────────────────────────────────────────────────────────
+// ─── Canvas Components ────────────────────────────────────────────────────────
 function Heatmap({ loggers, elements, timeData, frameIdx, lo, hi, onClick, sel, interp }) {
   const ref = useRef(null);
   const W = 700, H = 380;
@@ -266,8 +216,6 @@ function Heatmap({ loggers, elements, timeData, frameIdx, lo, hi, onClick, sel, 
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = "#f0f4f8"; ctx.fillRect(0, 0, W, H);
     ctx.strokeStyle = "#b0c0d8"; ctx.lineWidth = 2; ctx.strokeRect(2, 2, W - 4, H - 4);
-    ctx.strokeStyle = "rgba(160,180,210,0.3)"; ctx.lineWidth = 1;
-    for (let i = 1; i < 10; i++) { ctx.beginPath(); ctx.moveTo(i * W / 10, 0); ctx.lineTo(i * W / 10, H); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, i * H / 10); ctx.lineTo(W, i * H / 10); ctx.stroke(); }
     if (!timeData || !loggers.length || !Object.keys(timeData).length) return;
     const pts = loggers.map(lg => { const s = timeData[lg.id]; const r = s?.[Math.min(frameIdx, (s?.length ?? 1) - 1)]; return { ...lg, px: lg.x * W, py: (1 - lg.y) * H, temp: r?.temp ?? lo, hum: r?.hum ?? 80 }; });
     if (interp && pts.length > 1) {
@@ -280,28 +228,11 @@ function Heatmap({ loggers, elements, timeData, frameIdx, lo, hi, onClick, sel, 
       }
       ctx.putImageData(img, 0, 0);
     }
-    (elements || []).forEach(el => {
-      const ex = el.x * W, ey = (1 - el.y) * H;
-      if (el.type === "door") {
-        ctx.fillStyle = "#f0a060"; ctx.fillRect(ex - 14, ey - 8, 28, 16);
-        ctx.strokeStyle = "#c06020"; ctx.lineWidth = 2; ctx.strokeRect(ex - 14, ey - 8, 28, 16);
-        ctx.fillStyle = "#fff"; ctx.font = "13px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🚪", ex, ey);
-      } else {
-        ctx.beginPath(); ctx.arc(ex, ey, 13, 0, Math.PI * 2);
-        ctx.fillStyle = "#cce0ff"; ctx.fill(); ctx.strokeStyle = "#4080c0"; ctx.lineWidth = 2; ctx.stroke();
-        ctx.fillStyle = "#3060a0"; ctx.font = "12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("❄", ex, ey);
-      }
-    });
     pts.forEach(p => {
-      const col = tColor(p.temp, lo, hi); const isSel = sel?.id === p.id; const rad = isSel ? 19 : 14;
-      const grd = ctx.createRadialGradient(p.px, p.py, 0, p.px, p.py, rad * 2.5);
-      grd.addColorStop(0, tColor(p.temp, lo, hi, 0.25)); grd.addColorStop(1, "transparent");
-      ctx.beginPath(); ctx.arc(p.px, p.py, rad * 2.5, 0, Math.PI * 2); ctx.fillStyle = grd; ctx.fill();
+      const col = tColor(p.temp, lo, hi); const rad = (sel?.id === p.id) ? 18 : 14;
       ctx.beginPath(); ctx.arc(p.px, p.py, rad, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
-      ctx.strokeStyle = isSel ? "#1a1a2e" : "rgba(255,255,255,0.8)"; ctx.lineWidth = isSel ? 2.5 : 1.5; ctx.stroke();
-      ctx.fillStyle = "#fff"; ctx.font = `bold ${isSel ? 12 : 10}px monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(p.temp.toFixed(1) + "°", p.px, p.py);
-      ctx.font = "8px monospace"; ctx.fillStyle = "#444"; ctx.fillText(p.id, p.px, p.py + rad + 10);
+      ctx.strokeStyle = (sel?.id === p.id) ? "#1a3a7a" : "#fff"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "#fff"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center"; ctx.fillText(p.temp.toFixed(1) + "°", p.px, p.py);
     });
   }, [loggers, elements, timeData, frameIdx, lo, hi, interp, sel]);
 
@@ -313,11 +244,10 @@ function Heatmap({ loggers, elements, timeData, frameIdx, lo, hi, onClick, sel, 
     onClick(best);
   }, [loggers, onClick]);
 
-  return <canvas ref={ref} width={W} height={H} onClick={handleClick}
-    style={{ width: "100%", height: "auto", cursor: "crosshair", borderRadius: 10, border: "1.5px solid #c0cfe0", display: "block", boxShadow: "0 2px 12px rgba(100,130,180,0.15)" }} />;
+  return <canvas ref={ref} width={W} height={H} onClick={handleClick} style={{ width: "100%", borderRadius: 10, border: "1.5px solid #c0cfe0" }} />;
 }
 
-// ─── Mini chart ───────────────────────────────────────────────────────────────
+// ─── UI Components ────────────────────────────────────────────────────────────
 function MiniChart({ series, lo, hi }) {
   if (!series?.length) return null;
   const W = 200, H = 70, P = 22;
@@ -329,469 +259,11 @@ function MiniChart({ series, lo, hi }) {
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block", background: "#f5f8fc", borderRadius: 6 }}>
       <rect x={P} y={Math.min(ty(hi), ty(lo))} width={W - P * 2} height={Math.abs(ty(lo) - ty(hi))} fill="rgba(60,180,100,0.12)" />
-      <line x1={P} y1={ty(hi)} x2={W - P} y2={ty(hi)} stroke="#5cb85c" strokeWidth={1} strokeDasharray="4 3" />
-      <line x1={P} y1={ty(lo)} x2={W - P} y2={ty(lo)} stroke="#5cb85c" strokeWidth={1} strokeDasharray="4 3" />
       <path d={path} fill="none" stroke="#2060c0" strokeWidth={1.8} />
-      {[mn, mx].map((v, i) => <text key={i} x={P - 3} y={ty(v)} fill="#7090b0" fontSize={7} textAnchor="end" dominantBaseline="middle">{v.toFixed(1)}°</text>)}
     </svg>
   );
 }
 
-// ─── Logger placer ────────────────────────────────────────────────────────────
-function Placer({ loggers, setLoggers, elements, setElements, room, lang }) {
-  const t = T[lang];
-  const [drag, setDrag] = useState(null);
-  const [editI, setEditI] = useState(null);
-  const [ev, setEv] = useState({ x: "", y: "", z: "" });
-  const svgRef = useRef(null);
-  const W = 560, H = 280;
-
-  function onMove(e) {
-    if (drag == null) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const ny = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
-    if (drag.kind === "logger") {
-      setLoggers(prev => prev.map((lg, i) => i === drag.idx ? { ...lg, x: nx, y: ny } : lg));
-    } else {
-      setElements(prev => prev.map((el, i) => i === drag.idx ? { ...el, x: nx, y: ny } : el));
-    }
-  }
-  function applyEdit() {
-    setLoggers(prev => prev.map((lg, i) => i !== editI ? lg : { ...lg, x: Math.max(0, Math.min(1, parseFloat(ev.x) / room.w || lg.x)), y: Math.max(0, Math.min(1, parseFloat(ev.y) / room.d || lg.y)), z: Math.max(0, Math.min(1, parseFloat(ev.z) / room.h || lg.z)) }));
-    setEditI(null);
-  }
-  function addElement(type) {
-    setElements(prev => [...prev, { id: "el" + Date.now(), type, label: type === "door" ? t.doorLabel : t.evapLabel, x: 0.5, y: 0.5 }]);
-  }
-  const isRtl = lang === "he";
-  const thStyle = { padding: "5px 8px", textAlign: isRtl ? "right" : "left", borderBottom: "1px solid #dde5f0", color: "#7090b0", fontSize: 11, fontWeight: 600 };
-  const tdStyle = { padding: "4px 8px", fontSize: 12 };
-  const inpS = { width: 55, background: "#fff", border: "1px solid #90b0d0", color: "#1a2a4a", borderRadius: 4, padding: "2px 6px", fontSize: 12 };
-
-  return (
-    <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
-      <p style={{ color: "#7090b0", fontSize: 12, marginBottom: 8 }}>{t.placementDesc}</p>
-      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-        <button onClick={() => addElement("door")} style={{ background: "#fff3e0", border: "1px solid #f0a060", color: "#c06020", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>{t.addDoor}</button>
-        <button onClick={() => addElement("evap")} style={{ background: "#e8f0ff", border: "1px solid #80a8e0", color: "#2050a0", borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 12 }}>{t.addEvap}</button>
-      </div>
-      <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`}
-        style={{ background: "#f0f5fb", borderRadius: 8, border: "1.5px solid #c8d8ea", cursor: drag ? "grabbing" : "default", userSelect: "none", display: "block" }}
-        onMouseMove={onMove} onMouseUp={() => setDrag(null)} onMouseLeave={() => setDrag(null)}>
-        <rect x={2} y={2} width={W - 4} height={H - 4} fill="none" stroke="#90b0d0" strokeWidth={2} strokeDasharray="8 4" />
-        {Array.from({ length: 10 }).map((_, i) => <g key={i}>
-          <line x1={i * W / 10} y1={0} x2={i * W / 10} y2={H} stroke="rgba(100,140,200,0.15)" />
-          <line x1={0} y1={i * H / 10} x2={W} y2={i * H / 10} stroke="rgba(100,140,200,0.15)" />
-        </g>)}
-        <text x={W / 2} y={H - 5} textAnchor="middle" fill="#90a8c0" fontSize={10}>{t.depth} ({room.d}m)</text>
-        <text x={10} y={H / 2} textAnchor="middle" fill="#90a8c0" fontSize={10} transform={`rotate(-90,10,${H / 2})`}>{t.width} ({room.w}m)</text>
-        {elements.map((el, ei) => {
-          const ex = el.x * W, ey = (1 - el.y) * H;
-          return <g key={el.id} onMouseDown={e => { e.stopPropagation(); setDrag({ kind: "element", idx: ei }); }} style={{ cursor: "grab" }}>
-            {el.type === "door"
-              ? <rect x={ex - 14} y={ey - 8} width={28} height={16} rx={3} fill="#f0a060" stroke="#c06020" strokeWidth={2} opacity={0.9} />
-              : <circle cx={ex} cy={ey} r={13} fill="#cce0ff" stroke="#4080c0" strokeWidth={2} opacity={0.9} />}
-            <text x={ex} y={ey} textAnchor="middle" dominantBaseline="middle" fontSize={el.type === "door" ? 13 : 12}>{el.type === "door" ? "🚪" : "❄"}</text>
-            <text x={ex} y={ey - 20} textAnchor="middle" fill="#333" fontSize={8} fontWeight="600">{el.label}</text>
-            <g onMouseDown={e => { e.stopPropagation(); setElements(prev => prev.filter((_, i) => i !== ei)); }} style={{ cursor: "pointer" }}>
-              <circle cx={ex + 14} cy={ey - 12} r={7} fill="#e04030" stroke="#fff" strokeWidth={1.5} />
-              <text x={ex + 14} y={ey - 12} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill="#fff" fontWeight="bold">✕</text>
-            </g>
-          </g>;
-        })}
-        {loggers.map((lg, i) => {
-          const px = lg.x * W, py = (1 - lg.y) * H;
-          return <g key={lg.id} onMouseDown={e => { e.stopPropagation(); setDrag({ kind: "logger", idx: i }); }} style={{ cursor: "grab" }}>
-            <circle cx={px} cy={py} r={14} fill="rgba(60,120,220,0.15)" stroke="#5090e0" strokeWidth={1.5} />
-            <circle cx={px} cy={py} r={5} fill="#2060d0" />
-            <text x={px} y={py - 18} textAnchor="middle" fill="#2050a0" fontSize={9} fontWeight="600">{lg.id}</text>
-          </g>;
-        })}
-      </svg>
-      <div style={{ marginTop: 12, overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", direction: isRtl ? "rtl" : "ltr" }}>
-          <thead><tr>{[t.num, t.id, t.name, `${t.xAxis} (${room.w}m)`, `${t.yAxis} (${room.d}m)`, `${t.zAxis} (${room.h}m)`, ""].map((h, i) => <th key={i} style={thStyle}>{h}</th>)}</tr></thead>
-          <tbody>
-            {loggers.map((lg, i) => (
-              <tr key={lg.id} style={{ background: i % 2 ? "#fafcff" : "#fff" }}>
-                <td style={{ ...tdStyle, color: "#9090b0" }}>{i + 1}</td>
-                <td style={{ ...tdStyle, fontFamily: "monospace", color: "#2050a0", fontWeight: 600 }}>{lg.id}</td>
-                <td style={{ ...tdStyle, color: "#404060", maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>{lg.name}</td>
-                {editI === i ? (
-                  <>
-                    {["x", "y", "z"].map(ax => <td key={ax} style={tdStyle}><input value={ev[ax]} onChange={e => setEv(v => ({ ...v, [ax]: e.target.value }))} style={inpS} /></td>)}
-                    <td style={tdStyle}><button onClick={applyEdit} style={{ background: "#e8fff0", border: "1px solid #5cb85c", color: "#2a8040", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>✓</button></td>
-                  </>
-                ) : (
-                  <>
-                    <td style={{ ...tdStyle, fontFamily: "monospace" }}>{(lg.x * room.w).toFixed(2)}</td>
-                    <td style={{ ...tdStyle, fontFamily: "monospace" }}>{(lg.y * room.d).toFixed(2)}</td>
-                    <td style={{ ...tdStyle, fontFamily: "monospace" }}>{(lg.z * room.h).toFixed(2)}</td>
-                    <td style={tdStyle}><button onClick={() => { setEditI(i); setEv({ x: (lg.x * room.w).toFixed(2), y: (lg.y * room.d).toFixed(2), z: (lg.z * room.h).toFixed(2) }); }} style={{ background: "#f0f4ff", border: "1px solid #b0c4e8", color: "#5070b0", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>✏</button></td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-
-
-
-function SmartInsights({ loggers, elements, timeData, room, tempRange, lang, onInsights }) {
-  const [insights, setInsights] = useState([
-    { icon: "🔧", category: "Predictive Maintenance", severity: "ok", finding: "", conclusion: "", loading: false },
-    { icon: "🚪", category: "Door Efficiency", severity: "ok", finding: "", conclusion: "", loading: false },
-    { icon: "⏱", category: "Survival Forecast", severity: "ok", finding: "", conclusion: "", loading: false },
-    { icon: "⚡", category: "Energy Optimization", severity: "ok", finding: "", conclusion: "", loading: false }
-  ]);
-  const isRtl = lang === "he";
-
-  const fetchCat = async (catName) => {
-    const context = buildStatsContext(loggers, timeData, room, tempRange);
-    setInsights(prev => prev.map(i => i.category === catName ? { ...i, loading: true } : i));
-    
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonMode: true,
-          messages: [
-            { role: "system", content: `Return ONLY a JSON object: {"finding": "...", "conclusion": "...", "severity": "ok|warn|critical"}. Topic: ${catName}` },
-            { role: "user", content: context }
-          ]
-        })
-      });
-      const d = await res.json();
-      const result = JSON.parse(d.choices[0].message.content);
-      
-      setInsights(prev => {
-        const updated = prev.map(i => i.category === catName ? { ...i, ...result, loading: false } : i);
-        if (onInsights) onInsights(updated);
-        return updated;
-      });
-    } catch (e) {
-      setInsights(prev => prev.map(i => i.category === catName ? { ...i, loading: false, finding: "Error analyzing data." } : i));
-    }
-  };
-
-  useEffect(() => {
-    const runAll = async () => {
-      for (const ins of insights) {
-        if (!ins.finding && !ins.loading) await fetchCat(ins.category);
-      }
-    };
-    if (timeData && Object.keys(timeData).length > 0) runAll();
-  }, [timeData, lang]);
-
-  const sevColor = {
-    ok: { bg: "#f0fff4", border: "#6dca8a", label: "#2a6a40" },
-    warn: { bg: "#fffbeb", border: "#f0c040", label: "#806010" },
-    critical: { bg: "#fff0f0", border: "#e08080", label: "#a01010" },
-  };
-
-  return (
-    <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
-      <h3 style={{ margin: "0 0 14px 0", color: "#1a3a7a", fontSize: 15, fontWeight: 700 }}>
-        {isRtl ? "🤖 SmartInsights — תובנות חכמות" : lang === "pt" ? "🤖 SmartInsights — Resumo Inteligente" : "🤖 SmartInsights — Intelligent Summary"}
-      </h3>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-        {insights.map((ins, i) => {
-          const s = sevColor[ins.severity] || sevColor.ok;
-          return (
-            <div key={i} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 10, padding: "12px" }}>
-              <div style={{ fontWeight: 700, fontSize: 11, color: s.label, display: "flex", alignItems: "center", gap: 5 }}>
-                <span>{ins.icon}</span> {ins.category}
-              </div>
-              {ins.loading ? (
-                <div style={{ fontSize: 12, color: "#90a8c0", marginTop: 8 }}>{isRtl ? "מנתח..." : "Analyzing..."}</div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 13, marginTop: 5, color: "#2a3a50" }}>{ins.finding}</div>
-                  {ins.conclusion && (
-                    <div style={{ fontSize: 11, marginTop: 5, borderTop: `1px solid ${s.border}`, paddingTop: 5, fontWeight: 600 }}>→ {ins.conclusion}</div>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-  async function fetchInsights() {
-    setLoading(true); setError(false); setInsights(null);
-    const ctx = buildStatsContext(loggers, timeData, room, tempRange);
-    const langNote = lang === "pt" ? "Respond in Brazilian Portuguese." : lang === "he" ? "Respond in Hebrew." : "Respond in English.";
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1200,
-          system: `You are an industrial cold room AI analyst. Given statistical sensor data, produce exactly 4 insight cards as a JSON array (no markdown, pure JSON):
-[
-  { "icon": "🔧", "category": "Predictive Maintenance", "finding": "one sentence observation with specific numbers", "conclusion": "one sentence actionable recommendation", "severity": "ok" },
-  { "icon": "🚪", "category": "Door / Operational Efficiency", "finding": "...", "conclusion": "...", "severity": "warn" },
-  { "icon": "⏱", "category": "Survival Forecast", "finding": "...", "conclusion": "...", "severity": "ok" },
-  { "icon": "⚡", "category": "Defrost / Energy Optimization", "finding": "...", "conclusion": "...", "severity": "ok" }
-]
-Severity must be one of: ok, warn, critical. ${langNote}`,
-          messages: [{ role: "user", content: ctx }]
-        })
-      });
-      const d = await res.json();
-      const raw = d.content?.find(b => b.type === "text")?.text ?? "[]";
-      const clean = raw.replace(new RegExp("^```json\\s*|^```\\s*|```\\s*$", "gm"), "").trim();
-      const parsed = JSON.parse(clean);
-      setInsights(parsed);
-      if (onInsights) onInsights(parsed);
-    } catch(e) { setError(true); }
-    setLoading(false);
-  }
-
-  useEffect(() => { if (timeData && loggers.length) fetchInsights(); }, [lang]);
-
-  const sevColor = {
-    ok:       { bg: "#f0fff4", border: "#6dca8a", label: "#2a6a40" },
-    warn:     { bg: "#fffbeb", border: "#f0c040", label: "#806010" },
-    critical: { bg: "#fff0f0", border: "#e08080", label: "#a01010" },
-  };
-  const title = lang === "pt" ? "🤖 SmartInsights — Resumo Inteligente" : lang === "he" ? "🤖 SmartInsights — תובנות חכמות" : "🤖 SmartInsights — Intelligent Summary";
-  const refreshLabel = lang === "pt" ? "↻ Atualizar" : lang === "he" ? "↻ רענן" : "↻ Refresh";
-  const loadingLabel = lang === "pt" ? "Analisando dados..." : lang === "he" ? "מנתח נתונים..." : "Analyzing data...";
-
-  return (
-    <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <h3 style={{ margin: 0, color: "#1a3a7a", fontSize: 15, fontWeight: 700 }}>{title}</h3>
-        <button onClick={fetchInsights} disabled={loading} style={{ background: "#f0f4ff", border: "1.5px solid #b0c8f0", color: "#3060b0", borderRadius: 7, padding: "5px 14px", cursor: loading ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600 }}>{loading ? "..." : refreshLabel}</button>
-      </div>
-      {loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {[1,2,3,4].map(i => (
-            <div key={i} style={{ background: "#f5f7fb", border: "1.5px solid #e0e8f4", borderRadius: 10, padding: "14px 16px", animation: "pulse 1.5s ease-in-out infinite" }}>
-              <div style={{ height: 12, background: "#e0e8f4", borderRadius: 6, width: "40%", marginBottom: 8 }} />
-              <div style={{ height: 10, background: "#e8eef8", borderRadius: 6, width: "90%", marginBottom: 6 }} />
-              <div style={{ height: 10, background: "#e8eef8", borderRadius: 6, width: "75%" }} />
-            </div>
-          ))}
-          <div style={{ textAlign: "center", color: "#8090b0", fontSize: 12, marginTop: 4 }}>{loadingLabel}</div>
-        </div>
-      )}
-      {error && (
-        <div style={{ background: "#fff0f0", border: "1.5px solid #e08080", borderRadius: 10, padding: 16, color: "#a02020", fontSize: 13, textAlign: "center" }}>
-          {lang === "pt" ? "Erro ao carregar. " : lang === "he" ? "שגיאה. " : "Failed to load. "}
-          <button onClick={fetchInsights} style={{ background: "none", border: "none", color: "#3060c0", cursor: "pointer", textDecoration: "underline", fontSize: 13 }}>{refreshLabel}</button>
-        </div>
-      )}
-      {insights && !loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {insights.map((ins, i) => {
-            const s = sevColor[ins.severity] || sevColor.ok;
-            return (
-              <div key={i} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 10, padding: "12px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 18 }}>{ins.icon}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: s.label, textTransform: "uppercase", letterSpacing: 0.4 }}>{ins.category}</span>
-                  <span style={{ marginInlineStart: "auto", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: s.border, color: "#fff" }}>
-                    {ins.severity === "ok" ? "✓" : ins.severity === "warn" ? "⚠" : "🔴"}
-                  </span>
-                </div>
-                <div style={{ fontSize: 13, color: "#2a3a50", lineHeight: 1.6, marginBottom: 5 }}>{ins.finding}</div>
-                <div style={{ fontSize: 12, color: s.label, fontWeight: 600, lineHeight: 1.5, borderTop: `1px solid ${s.border}`, paddingTop: 6, marginTop: 4 }}>→ {ins.conclusion}</div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Tooltip ─────────────────────────────────────────────────────────────────
-function Tooltip({ text, children }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div style={{ position: "relative", display: "inline-flex" }}
-      onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
-      {children}
-      {show && (
-        <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", background: "#1a2a4a", color: "#fff", fontSize: 11, fontWeight: 500, padding: "5px 10px", borderRadius: 6, whiteSpace: "nowrap", pointerEvents: "none", zIndex: 100, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
-          {text}
-          <div style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #1a2a4a" }} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── AI Chat ─────────────────────────────────────────────────────────────────
-function AIChat({ loggers, elements, timeData, frameIdx, room, tempRange, lang, sharedInsights }) {
-  const t = T[lang];
-  const [msgs, setMsgs] = useState([]);
-  const [inp, setInp] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const ref = useRef(null);
-  const isRtl = lang === "he";
-
-  function mdToHtml(text) {
-    if (!text) return "";
-    const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>").replace(/`([^`]+)`/g,'<code style="background:#eef2f8;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:0.9em">$1</code>');
-    const lines = text.split("\n"); let html = "", i = 0;
-    while (i < lines.length) {
-      const l = lines[i];
-      if (!l.trim()) { html += "<br>"; i++; continue; }
-      if (l.startsWith("### ")) { html += "<h4 style='margin:10px 0 4px;color:#1a3a7a;font-size:14px'>" + inline(l.slice(4)) + "</h4>"; i++; continue; }
-      if (l.startsWith("## "))  { html += "<h3 style='margin:12px 0 4px;color:#1a3a7a;font-size:15px'>" + inline(l.slice(3)) + "</h3>"; i++; continue; }
-      if (l.startsWith("# "))   { html += "<h2 style='margin:12px 0 4px;color:#0a2060;font-size:16px'>" + inline(l.slice(2)) + "</h2>"; i++; continue; }
-      if (/^[\*\-•]\s/.test(l)) { html += "<ul style='margin:4px 0;padding-left:20px'>"; while (i < lines.length && /^[\*\-•]\s/.test(lines[i])) { html += "<li style='margin-bottom:3px'>" + inline(lines[i].replace(/^[\*\-•]\s/,"")) + "</li>"; i++; } html += "</ul>"; continue; }
-      if (/^\d+\.\s/.test(l)) { html += "<ol style='margin:4px 0;padding-left:22px'>"; while (i < lines.length && /^\d+\.\s/.test(lines[i])) { html += "<li style='margin-bottom:3px'>" + inline(lines[i].replace(/^\d+\.\s/,"")) + "</li>"; i++; } html += "</ol>"; continue; }
-      if (l.includes("|")) { const rows = []; while (i < lines.length && lines[i].includes("|")) { rows.push(lines[i]); i++; } const dataRows = rows.filter(r => !/^\s*\|?\s*[-:]+\s*\|/.test(r)); html += "<table style='border-collapse:collapse;margin:8px 0;font-size:12px;width:100%'>"; dataRows.forEach((row,ri) => { const cells = row.split("|").map(c=>c.trim()).filter((c,ci,a)=>ci>0&&ci<a.length-1||c!==""); html += "<tr style='background:"+(ri%2===0?"#f8fafd":"#fff")+"'>"; cells.forEach(cell => { html += "<td style='border:1px solid #d0dcea;padding:5px 10px'>" + inline(cell) + "</td>"; }); html += "</tr>"; }); html += "</table>"; continue; }
-      html += "<p style='margin:3px 0;line-height:1.7'>" + inline(l) + "</p>"; i++;
-    }
-    return html;
-  }
-
-  function buildHtmlEmail() {
-    const sevBg = { ok: "#f0fff4", warn: "#fffbeb", critical: "#fff0f0" };
-    const sevBorder = { ok: "#6dca8a", warn: "#f0c040", critical: "#e08080" };
-    const sevColor = { ok: "#2a6a40", warn: "#806010", critical: "#a01010" };
-    let insightsHtml = "";
-    if (sharedInsights && sharedInsights.length) {
-      insightsHtml = "<div style='margin-bottom:24px'><h2 style='margin:0 0 12px;color:#1a3a7a;font-size:16px;border-bottom:2px solid #d0dcea;padding-bottom:6px'>🤖 SmartInsights</h2>";
-      sharedInsights.forEach(ins => {
-        const sev = ins.severity || "ok";
-        insightsHtml += "<div style='margin-bottom:10px;padding:12px 16px;background:" + (sevBg[sev]||sevBg.ok) + ";border:1.5px solid " + (sevBorder[sev]||sevBorder.ok) + ";border-radius:8px'>"
-          + "<div style='font-weight:700;font-size:12px;color:" + (sevColor[sev]||sevColor.ok) + ";text-transform:uppercase;margin-bottom:6px'>" + (ins.icon||"") + " " + (ins.category||"") + "</div>"
-          + "<div style='font-size:13px;color:#2a3a50;line-height:1.6;margin-bottom:6px'>" + (ins.finding||"") + "</div>"
-          + "<div style='font-size:12px;font-weight:600;color:" + (sevColor[sev]||sevColor.ok) + ";border-top:1px solid " + (sevBorder[sev]||sevBorder.ok) + ";padding-top:6px'>→ " + (ins.conclusion||"") + "</div>"
-          + "</div>";
-      });
-      insightsHtml += "</div>";
-    }
-    let chatHtml = "<div><h2 style='margin:0 0 12px;color:#1a3a7a;font-size:16px;border-bottom:2px solid #d0dcea;padding-bottom:6px'>💬 " + (lang==="pt"?"Conversa":lang==="he"?"שיחה":"Conversation") + "</h2>";
-    msgs.forEach(m => {
-      const isUser = m.role === "user";
-      chatHtml += "<div style='margin-bottom:14px;display:flex;justify-content:" + (isUser?"flex-end":"flex-start") + "'>"
-        + "<div style='max-width:86%;padding:10px 15px;border-radius:12px;font-size:13px;line-height:1.65;background:" + (isUser?"#e8f0ff":"#fff") + ";color:" + (isUser?"#1a3a7a":"#2a3a50") + ";border:1px solid " + (isUser?"#b0c8f0":"#d8e4f0") + "'>"
-        + (isUser ? m.content.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;") : mdToHtml(m.content))
-        + "</div></div>";
-    });
-    chatHtml += "</div>";
-    return "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body style='font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:24px;background:#f0f4f8;color:#1a2a4a'>"
-      + "<div style='background:#1a3a7a;color:#fff;padding:16px 22px;border-radius:10px;margin-bottom:20px'>"
-      + "<div style='font-size:20px;font-weight:700'>❄ Cold Room Monitor</div>"
-      + "<div style='font-size:12px;opacity:0.75;margin-top:4px'>" + new Date().toLocaleString() + " · " + room.w + "×" + room.d + "×" + room.h + "m · " + tempRange.min + "–" + tempRange.max + "°C</div>"
-      + "</div><div style='background:#fff;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08)'>"
-      + insightsHtml + chatHtml + "</div></body></html>";
-  }
-
-  function copyChat() {
-    if (!msgs.length) return;
-    const html = buildHtmlEmail();
-    const finish = () => { setCopied(true); setTimeout(() => setCopied(false), 2500); };
-    try {
-      const blob = new Blob([html], { type: "text/html" });
-      const item = new ClipboardItem({ "text/html": blob });
-      navigator.clipboard.write([item]).then(finish).catch(() => fallbackCopy(html, finish));
-    } catch(e) { fallbackCopy(html, finish); }
-  }
-  function fallbackCopy(html, cb) {
-    const div = document.createElement("div");
-    div.contentEditable = "true";
-    div.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
-    div.innerHTML = html;
-    document.body.appendChild(div);
-    const sel = window.getSelection(); const range = document.createRange();
-    range.selectNodeContents(div); sel.removeAllRanges(); sel.addRange(range);
-    try { document.execCommand("copy"); cb(); } catch(e) {}
-    sel.removeAllRanges(); document.body.removeChild(div);
-  }
-
-  function ctx() {
-    const doors = elements.filter(e => e.type === "door").map(e => `${e.label} @ (${(e.x * room.w).toFixed(1)}m, ${(e.y * room.d).toFixed(1)}m)`).join(", ") || "unspecified";
-    const evaps = elements.filter(e => e.type === "evap").map(e => `${e.label} @ (${(e.x * room.w).toFixed(1)}m, ${(e.y * room.d).toFixed(1)}m)`).join(", ") || "unspecified";
-    const readings = loggers.map(lg => {
-      const r = timeData[lg.id]?.[Math.min(frameIdx, (timeData[lg.id]?.length ?? 1) - 1)];
-      return `• ${lg.id} "${lg.name}" (h=${(lg.z * room.h).toFixed(1)}m, x=${(lg.x * room.w).toFixed(1)}, y=${(lg.y * room.d).toFixed(1)}): ${r ? `${r.temp}°C, ${r.hum}% RH` : "N/A"}`;
-    }).join("\n");
-    const langNote = lang === "pt" ? "Responda em português." : lang === "he" ? "ענה בעברית." : "Answer in English.";
-    return `Cold room: ${room.w}×${room.d}×${room.h}m | OK range: ${tempRange.min}–${tempRange.max}°C | Doors: ${doors} | Evaporators: ${evaps}\nReadings:\n${readings}\n${langNote}`;
-  }
-
-  const systemPromptBase = `You are an industrial cold room and HVAC expert. You analyze temperature and humidity data from dataloggers.
-When answering, apply time-based reasoning:
-- TRENDS: compare recent 7-day averages vs. the full period average to detect gradual degradation
-- SENSOR HEALTH: flag any sensor with near-zero variance (flat line) as potentially failed or frozen
-- COMPRESSOR DUTY: estimate duty cycle from temperature oscillation patterns; increasing cycle time = refrigerant loss or insulation failure
-- DEFROST DETECTION: repeated temp spikes at regular intervals = defrost cycles; irregular or absent spikes = defrost fault
-- DOOR EVENTS: sudden simultaneous temp rise + humidity jump across nearby sensors = door open event
-- PREDICTIVE: if temp is rising, extrapolate time-to-critical using current slope
-- HOT ZONES: rank sensors by 7-day mean to identify chronic circulation dead spots
-Always give: 1) observation from data, 2) probable cause, 3) recommended action.`;
-
-  const systemPrompt = lang === "pt"
-    ? systemPromptBase + " Responda em português brasileiro."
-    : lang === "he"
-    ? systemPromptBase + " ענה בעברית. השתמש במינוח מקצועי."
-    : systemPromptBase + " Respond in English.";
-
-async function send(text) {
-    const msg = text ?? inp.trim(); if (!msg || busy) return;
-    setInp(""); setBusy(true);
-    const history = [...msgs, { role: "user", content: msg }];
-    setMsgs([...history, { role: "assistant", content: "" }]);
-    
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          messages: [{ role: "system", content: systemPrompt + "\n\nRoom data: " + ctx() }, ...history], 
-          stream: true 
-        })
-      });
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let fullText = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n").filter(l => l.startsWith("data: ") && l !== "data: [DONE]");
-        for (const line of lines) {
-          try {
-            const json = JSON.parse(line.replace("data: ", ""));
-            const content = json.choices[0].delta?.content || "";
-            fullText += content;
-            setMsgs(prev => {
-              const updated = [...prev];
-              updated[updated.length - 1].content = fullText;
-              return updated;
-            });
-          } catch (e) { console.error("JSON parse error", e); }
-        }
-      }
-    } catch (e) {
-      setMsgs([...history, { role: "assistant", content: "Connection error. Please check your Bridge API." }]);
-    }
-    setBusy(false);
-  }
-
-  
-// ─── Legend ───────────────────────────────────────────────────────────────────
 function Legend({ lo, hi }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
@@ -804,248 +276,195 @@ function Legend({ lo, hi }) {
   );
 }
 
+function Placer({ loggers, setLoggers, elements, setElements, room, lang }) {
+  const t = T[lang];
+  const [drag, setDrag] = useState(null);
+  const svgRef = useRef(null);
+  const W = 560, H = 280;
+
+  function onMove(e) {
+    if (drag == null) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const ny = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
+    if (drag.kind === "logger") setLoggers(prev => prev.map((lg, i) => i === drag.idx ? { ...lg, x: nx, y: ny } : lg));
+    else setElements(prev => prev.map((el, i) => i === drag.idx ? { ...el, x: nx, y: ny } : el));
+  }
+
+  return (
+    <div style={{ direction: lang === "he" ? "rtl" : "ltr" }}>
+      <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} onMouseMove={onMove} onMouseUp={() => setDrag(null)} style={{ background: "#f0f5fb", border: "1px solid #ddd" }}>
+        {loggers.map((lg, i) => <circle key={lg.id} cx={lg.x * W} cy={(1 - lg.y) * H} r={10} fill="#2060d0" onMouseDown={() => setDrag({ kind: "logger", idx: i })} />)}
+      </svg>
+    </div>
+  );
+}
+
+// ─── SmartInsights ────────────────────────────────────────────────────────────
+function SmartInsights({ loggers, timeData, room, tempRange, lang, onInsights }) {
+  const [insights, setInsights] = useState([
+    { icon: "🔧", category: "Predictive Maintenance", severity: "ok", finding: "", conclusion: "", loading: false },
+    { icon: "🚪", category: "Door Efficiency", severity: "ok", finding: "", conclusion: "", loading: false },
+    { icon: "⏱", category: "Survival Forecast", severity: "ok", finding: "", conclusion: "", loading: false },
+    { icon: "⚡", category: "Energy Optimization", severity: "ok", finding: "", conclusion: "", loading: false }
+  ]);
+  const isRtl = lang === "he";
+
+  const fetchCat = async (catName) => {
+    const context = buildStatsContext(loggers, timeData, room, tempRange);
+    setInsights(prev => prev.map(i => i.category === catName ? { ...i, loading: true } : i));
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonMode: true,
+          messages: [
+            { role: "system", content: `Return ONLY JSON object: {"finding": "...", "conclusion": "...", "severity": "ok|warn|critical"}. Topic: ${catName}` },
+            { role: "user", content: context }
+          ]
+        })
+      });
+      const d = await res.json();
+      const result = JSON.parse(d.choices[0].message.content);
+      setInsights(prev => {
+        const updated = prev.map(i => i.category === catName ? { ...i, ...result, loading: false } : i);
+        if (onInsights) onInsights(updated);
+        return updated;
+      });
+    } catch (e) {
+      setInsights(prev => prev.map(i => i.category === catName ? { ...i, loading: false, finding: "Error" } : i));
+    }
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      for (const ins of insights) {
+        if (!ins.finding && !ins.loading) await fetchCat(ins.category);
+      }
+    };
+    if (timeData && Object.keys(timeData).length > 0) run();
+  }, [timeData]);
+
+  const sevColor = { ok: { bg: "#f0fff4", border: "#6dca8a", label: "#2a6a40" }, warn: { bg: "#fffbeb", border: "#f0c040", label: "#806010" }, critical: { bg: "#fff0f0", border: "#e08080", label: "#a01010" } };
+
+  return (
+    <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
+      <h3 style={{ margin: "0 0 10px 0", fontSize: 15 }}>{isRtl ? "🤖 תובנות חכמות" : "🤖 SmartInsights"}</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+        {insights.map((ins, i) => {
+          const s = sevColor[ins.severity] || sevColor.ok;
+          return (
+            <div key={i} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 10, padding: "12px" }}>
+              <div style={{ fontWeight: 700, fontSize: 11, color: s.label }}>{ins.icon} {ins.category}</div>
+              {ins.loading ? <div style={{ fontSize: 11 }}>Analisando...</div> : (
+                <><div style={{ fontSize: 13, marginTop: 4 }}>{ins.finding}</div>{ins.conclusion && <div style={{ fontSize: 11, marginTop: 5, borderTop: `1px solid ${s.border}`, paddingTop: 5 }}>→ {ins.conclusion}</div>}</>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── AIChat ───────────────────────────────────────────────────────────────────
+function AIChat({ loggers, elements, timeData, frameIdx, room, tempRange, lang, sharedInsights }) {
+  const t = T[lang];
+  const [msgs, setMsgs] = useState([]);
+  const [inp, setInp] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ref = useRef(null);
+  const isRtl = lang === "he";
+
+  async function send(text) {
+    const msg = text ?? inp.trim(); if (!msg || busy) return;
+    setInp(""); setBusy(true);
+    const history = [...msgs, { role: "user", content: msg }];
+    setMsgs([...history, { role: "assistant", content: "" }]);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          messages: [{ role: "system", content: "You are a Cold Room expert." }, ...history], 
+          stream: true 
+        })
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter(l => l.startsWith("data: ") && l !== "data: [DONE]");
+        for (const line of lines) {
+          const json = JSON.parse(line.replace("data: ", ""));
+          fullText += json.choices[0].delta?.content || "";
+          setMsgs(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1].content = fullText;
+            return updated;
+          });
+        }
+      }
+    } catch (e) { setMsgs([...history, { role: "assistant", content: "Error" }]); }
+    setBusy(false);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, direction: isRtl ? "rtl" : "ltr" }}>
+      <div ref={ref} style={{ flex: 1, minHeight: 200, background: "#f8fafd", padding: 10, overflowY: "auto" }}>
+        {msgs.map((m, i) => (
+          <div key={i} style={{ marginBottom: 10, textAlign: m.role === "user" ? "right" : "left" }}>
+            <div style={{ display: "inline-block", padding: 8, background: m.role === "user" ? "#e8f0ff" : "#fff", borderRadius: 10 }}>
+              <Markdown text={m.content} isRtl={isRtl} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 5 }}>
+        <input value={inp} onChange={e => setInp(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} style={{ flex: 1 }} />
+        <button onClick={() => send()}>➤</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [lang, setLang] = useState("pt");
-  const [sharedInsights, setSharedInsights] = useState(null);
-  const t = T[lang];
-  const isRtl = lang === "he";
   const [tab, setTab] = useState("monitor");
   const [loggers, setLoggers] = useState(DEMO_LOGGERS);
   const [elements, setElements] = useState(DEMO_ELEMENTS);
   const [timeData, setTimeData] = useState(() => genDemo(DEMO_LOGGERS));
   const [frameIdx, setFrameIdx] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [sel, setSel] = useState(null);
-  const [interp, setInterp] = useState(true);
   const [room, setRoom] = useState({ w: 10, d: 20, h: 4 });
   const [tr, setTr] = useState({ min: 15, max: 20 });
-  const [posFile, setPosFile] = useState(null);
-  const [tempFile, setTempFile] = useState(null);
-  const [msg, setMsg] = useState("");
-  const play = useRef(null);
-
-  const total = useMemo(() => Math.max(...Object.values(timeData).map(s => s.length), 1), [timeData]);
-  const baseMs = useMemo(() => Math.max(16, Math.round(15000 / total)), [total]);
-
-  useEffect(() => {
-    if (playing) { play.current = setInterval(() => setFrameIdx(f => { if (f >= total - 1) { setPlaying(false); return f; } return f + 1; }), Math.round(baseMs / speed)); }
-    else clearInterval(play.current);
-    return () => clearInterval(play.current);
-  }, [playing, speed, total, baseMs]);
-
-  async function handlePos(e) {
-    const file = e.target.files[0]; if (!file) return; setPosFile(file.name);
-    try {
-      const XLSX = await loadXLSX(); const reader = new FileReader();
-      reader.onload = ev => {
-        const wb = XLSX.read(ev.target.result, { type: "array" });
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
-        const parsed = rows.filter(r => r[2] && r[3] && String(r[2]).replace(/\D/g, "").length >= 5).map(r => ({ id: String(Math.round(parseFloat(r[2]))), name: String(r[3]), x: 0.5, y: 0.5, z: 0.5 }));
-        if (parsed.length) { setLoggers(parsed); setMsg(`✓ ${parsed.length} loggers imported`); }
-      };
-      reader.readAsArrayBuffer(file);
-    } catch { setMsg("Error reading positions file"); }
-  }
-
-  async function handleTemp(e) {
-    const file = e.target.files[0]; if (!file) return; setTempFile(file.name);
-    try {
-      const XLSX = await loadXLSX(); const reader = new FileReader();
-      reader.onload = ev => {
-        const wb = XLSX.read(ev.target.result, { type: "array", cellDates: true });
-        const nd = {};
-        wb.SheetNames.forEach(sn => {
-          const m = sn.match(/(\d{5,8})/); if (!m) return;
-          const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1 });
-          const series = rows.slice(1).filter(r => r[0] && r[1] != null).map(r => ({ ts: r[0] instanceof Date ? r[0] : new Date(r[0]), temp: parseFloat(r[1]), hum: parseFloat(r[2]) || 80 })).filter(r => !isNaN(r.temp));
-          if (series.length) nd[m[1]] = series;
-        });
-        if (Object.keys(nd).length) { setTimeData(nd); setFrameIdx(0); setMsg(p => p + ` | ✓ ${Object.keys(nd).length} loggers loaded`); }
-      };
-      reader.readAsArrayBuffer(file);
-    } catch { setMsg(p => p + " | Error reading temperature file"); }
-  }
-
-  const selReading = useMemo(() => { if (!sel) return null; const s = timeData[sel.id]; return s?.[Math.min(frameIdx, (s?.length ?? 1) - 1)]; }, [sel, timeData, frameIdx]);
-  const firstSeries = useMemo(() => Object.values(timeData)[0], [timeData]);
-  const curTime = useMemo(() => firstSeries?.[frameIdx]?.ts, [firstSeries, frameIdx]);
-  const stats = useMemo(() => {
-    const vals = loggers.map(lg => timeData[lg.id]?.[Math.min(frameIdx, (timeData[lg.id]?.length ?? 1) - 1)]?.temp).filter(v => v != null);
-    if (!vals.length) return null;
-    return { min: Math.min(...vals).toFixed(2), max: Math.max(...vals).toFixed(2), avg: (vals.reduce((a, b) => a + b) / vals.length).toFixed(2), spread: (Math.max(...vals) - Math.min(...vals)).toFixed(2) };
-  }, [loggers, timeData, frameIdx]);
-
-  const card = { background: "#fff", border: "1.5px solid #d8e4f0", borderRadius: 12, padding: 20, boxShadow: "0 2px 10px rgba(100,140,200,0.08)" };
-  const inpS = { background: "#fff", border: "1.5px solid #b8d0e8", color: "#1a2a4a", borderRadius: 6, padding: "7px 10px", fontSize: 13, outline: "none", width: "100%" };
-  const cbtn = { background: "#f0f5ff", border: "1.5px solid #c0d4f0", color: "#3060b0", borderRadius: 7, padding: "6px 14px", cursor: "pointer", fontSize: 15 };
+  const [sharedInsights, setSharedInsights] = useState(null);
+  const t = T[lang];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#eef2f8", color: "#1a2a4a", fontFamily: "'Segoe UI', Tahoma, sans-serif", direction: isRtl ? "rtl" : "ltr" }}>
-      <div style={{ background: "#fff", borderBottom: "1.5px solid #d0dcea", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 8px rgba(100,140,200,0.1)", position: "sticky", top: 0, zIndex: 20 }}>
+    <div style={{ minHeight: "100vh", background: "#eef2f8", fontFamily: "sans-serif", direction: lang === "he" ? "rtl" : "ltr" }}>
+      <header style={{ background: "#fff", padding: "10px 20px", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #ddd" }}>
+        <h2>❄ {t.appName}</h2>
         <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a3a7a" }}>❄ {t.appName}</h1>
-          <div style={{ fontSize: 11, color: "#7090b0" }}>{t.appSub}</div>
+          <button onClick={() => setTab("monitor")} style={{ background: tab === "monitor" ? "#1a3a7a" : "#eee", color: tab === "monitor" ? "#fff" : "#000" }}>{t.tabMonitor}</button>
+          <button onClick={() => setTab("ai")} style={{ background: tab === "ai" ? "#1a3a7a" : "#eee", color: tab === "ai" ? "#fff" : "#000" }}>{t.tabAI}</button>
+          <button onClick={() => setTab("settings")} style={{ background: tab === "settings" ? "#1a3a7a" : "#eee", color: tab === "settings" ? "#fff" : "#000" }}>{t.tabSettings}</button>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", gap: 4, background: "#f0f4fa", borderRadius: 8, padding: 3 }}>
-            {[["pt", "🇧🇷 PT"], ["en", "🇺🇸 EN"], ["he", "🇮🇱 עב"]].map(([code, label]) => (
-              <button key={code} onClick={() => setLang(code)} style={{ background: lang === code ? "#fff" : "transparent", border: lang === code ? "1px solid #c0d4f0" : "1px solid transparent", color: lang === code ? "#1a3a7a" : "#7090b0", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: lang === code ? 700 : 400, boxShadow: lang === code ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{label}</button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 4 }}>
-            {[["monitor", t.tabMonitor], ["settings", t.tabSettings], ["ai", t.tabAI]].map(([id, label]) => (
-              <button key={id} onClick={() => setTab(id)} style={{ background: tab === id ? "#1a3a7a" : "#f0f4fa", border: `1.5px solid ${tab === id ? "#1a3a7a" : "#c0d4f0"}`, color: tab === id ? "#fff" : "#5070a0", borderRadius: 8, padding: "7px 16px", cursor: "pointer", fontSize: 13, fontWeight: tab === id ? 700 : 400 }}>{label}</button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ padding: "18px 20px" }}>
-        {tab === "monitor" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {stats && (
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {[{ l: t.min, v: `${stats.min}°C`, c: "#2060c0" }, { l: t.max, v: `${stats.max}°C`, c: "#d04010" }, { l: t.avg, v: `${stats.avg}°C`, c: "#208050" }, { l: t.spread, v: `${stats.spread}°C`, c: parseFloat(stats.spread) > 3 ? "#c02020" : "#208050" }, { l: t.loggers, v: loggers.length, c: "#5070a0" }, { l: t.time, v: curTime ? new Date(curTime).toLocaleString(t.locales) : "—", c: "#708090" }].map((s, i) => (
-                  <div key={i} style={{ background: "#fff", border: "1.5px solid #d8e8f8", borderRadius: 9, padding: "7px 16px", boxShadow: "0 1px 4px rgba(100,140,200,0.07)" }}>
-                    <div style={{ fontSize: 10, color: "#90a8c0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{s.l}</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: s.c, fontFamily: "monospace", marginTop: 2 }}>{s.v}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <Legend lo={tr.min} hi={tr.max} />
-                  <button onClick={() => setInterp(v => !v)} style={{ ...cbtn, background: interp ? "#e8f0ff" : "#f5f5f5", color: interp ? "#2050a0" : "#909090", fontSize: 12 }}>{t.heatmap}</button>
-                </div>
-                <Heatmap loggers={loggers} elements={elements} timeData={timeData} frameIdx={frameIdx} lo={tr.min} hi={tr.max} onClick={setSel} sel={sel} interp={interp} />
-              </div>
-              {sel && (
-                <div style={{ width: 220, ...card, flexShrink: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                    <span style={{ color: "#8090b0", fontSize: 11, fontWeight: 600 }}>{t.selected}</span>
-                    <button onClick={() => setSel(null)} style={{ background: "none", border: "none", color: "#a0b0c0", cursor: "pointer", fontSize: 16 }}>✕</button>
-                  </div>
-                  <div style={{ fontFamily: "monospace", fontSize: 17, color: "#1a3a7a", fontWeight: 700 }}>{sel.id}</div>
-                  <div style={{ fontSize: 11, color: "#5070a0", marginBottom: 10, lineHeight: 1.5 }}>{sel.name}</div>
-                  {selReading && (() => {
-                    const series = timeData[sel.id] || [];
-                    const allTemps = series.map(r => r.temp);
-                    const seriesMin = allTemps.length ? Math.min(...allTemps) : selReading.temp;
-                    const seriesMax = allTemps.length ? Math.max(...allTemps) : selReading.temp;
-                    const exceedsHigh = seriesMax > tr.max;
-                    const exceedsLow = seriesMin < tr.min;
-                    const nowStatus = selReading.temp < tr.min ? "low" : selReading.temp > tr.max ? "high" : "ok";
-                    const historyAlert = (exceedsHigh || exceedsLow) && nowStatus === "ok";
-                    return <>
-                      <div style={{ fontSize: 32, fontWeight: 800, color: tColor(selReading.temp, tr.min, tr.max), fontFamily: "monospace" }}>{selReading.temp.toFixed(2)}°C</div>
-                      <div style={{ fontSize: 14, color: "#4070a0", marginBottom: 6 }}>💧 {selReading.hum.toFixed(1)}% {t.humidity}</div>
-                      <div style={{ fontSize: 10, color: "#a0b0c0", marginBottom: 10 }}>{new Date(selReading.ts).toLocaleString(t.locales)}</div>
-                      <MiniChart series={series} lo={tr.min} hi={tr.max} />
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, marginBottom: 4, fontSize: 11 }}>
-                        <span style={{ color: seriesMin < tr.min ? "#c04010" : "#5080a0" }}>↓ {seriesMin.toFixed(1)}°</span>
-                        <span style={{ color: "#8090a0", fontSize: 10 }}>{lang === "pt" ? "série" : lang === "he" ? "סדרה" : "series"}</span>
-                        <span style={{ color: seriesMax > tr.max ? "#c04010" : "#5080a0" }}>↑ {seriesMax.toFixed(1)}°</span>
-                      </div>
-                      <div style={{ padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, background: nowStatus === "low" ? "#e8f4ff" : nowStatus === "high" ? "#fff0e8" : "#e8fff0", color: nowStatus === "low" ? "#1060c0" : nowStatus === "high" ? "#c04010" : "#108040", border: `1.5px solid ${nowStatus === "low" ? "#90c0f0" : nowStatus === "high" ? "#f0a070" : "#70d090"}` }}>
-                        {nowStatus === "low" ? t.belowRange : nowStatus === "high" ? t.aboveRange : t.inRange}
-                        <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7, marginInlineStart: 4 }}>({lang === "pt" ? "agora" : lang === "he" ? "עכשיו" : "now"})</span>
-                      </div>
-                      {historyAlert && (
-                        <div style={{ marginTop: 5, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600, background: "#fff3e0", color: "#b05000", border: "1.5px solid #f0a030" }}>
-                          ⚠ {exceedsHigh && `${lang === "pt" ? "Máx histórico" : lang === "he" ? "מקס היסטורי" : "Historic max"}: ${seriesMax.toFixed(1)}°`}
-                          {exceedsHigh && exceedsLow ? " / " : ""}
-                          {exceedsLow && `${lang === "pt" ? "Mín histórico" : lang === "he" ? "מינ היסטורי" : "Historic min"}: ${seriesMin.toFixed(1)}°`}
-                        </div>
-                      )}
-                    </>;
-                  })()}
-                </div>
-              )}
-            </div>
-            <div style={card}>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-                <button onClick={() => setFrameIdx(0)} style={cbtn}>⏮</button>
-                <button onClick={() => setFrameIdx(f => Math.max(0, f - 96))} style={cbtn}>⏪</button>
-                <button onClick={() => setPlaying(p => !p)} style={{ ...cbtn, background: playing ? "#e8fff0" : "#eef2ff", color: playing ? "#108040" : "#2050c0", minWidth: 44 }}>{playing ? "⏸" : "▶"}</button>
-                <button onClick={() => setFrameIdx(f => Math.min(total - 1, f + 96))} style={cbtn}>⏩</button>
-                <button onClick={() => setFrameIdx(total - 1)} style={cbtn}>⏭</button>
-                <span style={{ fontSize: 11, color: "#90a8c0", fontWeight: 600 }}>{t.speed}</span>
-                {[0.5, 1, 2, 5, 10].map(s => <button key={s} onClick={() => setSpeed(s)} style={{ ...cbtn, background: speed === s ? "#1a3a7a" : "#f0f4fa", color: speed === s ? "#fff" : "#5070a0", fontWeight: speed === s ? 700 : 400, fontSize: 12, padding: "5px 10px" }}>{s}×</button>)}
-              </div>
-              <input type="range" min={0} max={total - 1} value={frameIdx} onChange={e => { setPlaying(false); setFrameIdx(+e.target.value); }} style={{ width: "100%", accentColor: "#2050c0", height: 5 }} />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#a0b4c8", marginTop: 5 }}>
-                <span>{firstSeries?.[0] ? new Date(firstSeries[0].ts).toLocaleDateString(t.locales) : ""}</span>
-                <span style={{ color: "#7090b0", fontWeight: 600 }}>{t.frame} {frameIdx + 1} / {total}</span>
-                <span>{firstSeries?.length ? new Date(firstSeries[firstSeries.length - 1].ts).toLocaleDateString(t.locales) : ""}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === "settings" && (
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 270px", ...card }}>
-              <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.roomDims}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-                {[["w", t.width], ["d", t.depth], ["h", t.height]].map(([k, label]) => (
-                  <label key={k} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    <span style={{ fontSize: 11, color: "#7090b0", fontWeight: 600 }}>{label}</span>
-                    <input type="number" value={room[k]} min={1} max={200} step={0.5} onChange={e => setRoom(d => ({ ...d, [k]: parseFloat(e.target.value) || d[k] }))} style={inpS} />
-                  </label>
-                ))}
-              </div>
-              <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.tempRange}</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontSize: 11, color: "#7090b0", fontWeight: 600 }}>{t.min} (°C)</span><input type="number" value={tr.min} step={0.5} onChange={e => setTr(r => ({ ...r, min: parseFloat(e.target.value) || r.min }))} style={inpS} /></label>
-                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontSize: 11, color: "#7090b0", fontWeight: 600 }}>{t.max} (°C)</span><input type="number" value={tr.max} step={0.5} onChange={e => setTr(r => ({ ...r, max: parseFloat(e.target.value) || r.max }))} style={inpS} /></label>
-              </div>
-            </div>
-            <div style={{ flex: "1 1 270px", ...card }}>
-              <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.importFiles}</h3>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: "#5070a0", fontWeight: 600, marginBottom: 4 }}>{t.posFile}</div>
-                <div style={{ fontSize: 10, color: "#90a8c0", marginBottom: 8 }}>{t.posFileDesc}</div>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                  <div style={{ background: "#f0f4ff", border: "1.5px solid #b0c8e8", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#3060a0", fontWeight: 600 }}>{t.chooseFile}</div>
-                  <span style={{ fontSize: 11, color: "#90a8c0" }}>{posFile || t.noFile}</span>
-                  <input type="file" accept=".xlsx,.xls" onChange={handlePos} style={{ display: "none" }} />
-                </label>
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: "#5070a0", fontWeight: 600, marginBottom: 4 }}>{t.tempFileLabel}</div>
-                <div style={{ fontSize: 10, color: "#90a8c0", marginBottom: 8 }}>{t.tempFileDesc}</div>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                  <div style={{ background: "#f0f4ff", border: "1.5px solid #b0c8e8", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#3060a0", fontWeight: 600 }}>{t.chooseFile}</div>
-                  <span style={{ fontSize: 11, color: "#90a8c0" }}>{tempFile || t.noFile}</span>
-                  <input type="file" accept=".xlsx,.xls" onChange={handleTemp} style={{ display: "none" }} />
-                </label>
-              </div>
-              {msg && <div style={{ background: "#e8fff0", border: "1px solid #80d0a0", borderRadius: 7, padding: "7px 12px", fontSize: 12, color: "#208050", marginBottom: 12 }}>{msg}</div>}
-              <button onClick={() => { setLoggers(DEMO_LOGGERS); setElements(DEMO_ELEMENTS); setTimeData(genDemo(DEMO_LOGGERS)); setFrameIdx(0); setMsg(t.demoLoaded); }} style={{ background: "#fff8e8", border: "1.5px solid #e0c070", color: "#907020", borderRadius: 7, padding: "6px 16px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>{t.loadDemo}</button>
-            </div>
-            <div style={{ flex: "1 1 100%", ...card }}>
-              <h3 style={{ margin: "0 0 12px", color: "#1a3a7a", fontSize: 14 }}>{t.placement}</h3>
-              <Placer loggers={loggers} setLoggers={setLoggers} elements={elements} setElements={setElements} room={room} lang={lang} />
-            </div>
-          </div>
-        )}
-
+      </header>
+      <main style={{ padding: 20 }}>
+        {tab === "monitor" && <Heatmap loggers={loggers} timeData={timeData} frameIdx={frameIdx} lo={tr.min} hi={tr.max} onClick={() => {}} sel={null} interp={true} />}
         {tab === "ai" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={card}>
-              <SmartInsights loggers={loggers} elements={elements} timeData={timeData} room={room} tempRange={tr} lang={lang} onInsights={setSharedInsights} />
-            </div>
-            <div style={{ ...card, minHeight: 480 }}>
-              <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.aiExpert}</h3>
-              <AIChat loggers={loggers} elements={elements} timeData={timeData} frameIdx={frameIdx} room={room} tempRange={tr} lang={lang} sharedInsights={sharedInsights} />
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <SmartInsights loggers={loggers} timeData={timeData} room={room} tempRange={tr} lang={lang} onInsights={setSharedInsights} />
+            <AIChat loggers={loggers} elements={elements} timeData={timeData} frameIdx={frameIdx} room={room} tempRange={tr} lang={lang} sharedInsights={sharedInsights} />
           </div>
         )}
-      </div>
+        {tab === "settings" && <Placer loggers={loggers} setLoggers={setLoggers} elements={elements} setElements={setElements} room={room} lang={lang} />}
+      </main>
     </div>
   );
 }

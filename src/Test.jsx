@@ -538,76 +538,73 @@ function Placer({ loggers, setLoggers, elements, setElements, room, lang }) {
 }
 
 
-// ─── Smart Insights Panel ─────────────────────────────────────────────────────
-function SmartInsights({ loggers, elements, timeData, room, tempRange, lang, onInsights }) {
-  const [insights, setInsights] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const isRtl = lang === "he";
+function SmartInsights({ loggers, elements, timeData, room, tempRange, lang }) {
+  const [insights, setInsights] = useState([
+    { icon: "🔧", category: "Predictive Maintenance", severity: "ok", loading: false },
+    { icon: "🚪", category: "Door Efficiency", severity: "ok", loading: false },
+    { icon: "⏱", category: "Survival Forecast", severity: "ok", loading: false },
+    { icon: "⚡", category: "Energy Optimization", severity: "ok", loading: false }
+  ]);
 
+  const fetchCategory = async (category) => {
+    // 1. Mark this specific category as loading
+    setInsights(prev => prev.map(ins => ins.category === category ? { ...ins, loading: true } : ins));
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonMode: true,
+          messages: [
+            { role: "system", content: `Analyze the cold room data ONLY for ${category}. Return a JSON object: { "finding": "...", "conclusion": "...", "severity": "ok|warn|critical" }.` },
+            { role: "user", content: buildStatsContext() }
+          ]
+        })
+      });
+      const d = await res.json();
+      const result = JSON.parse(d.choices[0].message.content);
+
+      // 2. Update the card with the result
+      setInsights(prev => prev.map(ins => 
+        ins.category === category ? { ...ins, ...result, loading: false } : ins
+      ));
+    } catch (e) {
+      setInsights(prev => prev.map(ins => ins.category === category ? { ...ins, loading: false, finding: "Error loading data" } : ins));
+    }
+  };
+
+  // 3. Trigger all 4 in parallel when the component loads
   useEffect(() => {
-    if (document.getElementById("crm-keyframes")) return;
-    const s = document.createElement("style");
-    s.id = "crm-keyframes";
-    s.textContent = `
-      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-    `;
-    document.head.appendChild(s);
-  }, []);
+    if (timeData && loggers.length) {
+      insights.forEach(ins => fetchCategory(ins.category));
+    }
+  }, [lang]); // Re-runs if user changes language
 
-  // Build rich statistical context from full time series
-  function buildStatsContext() {
-    const now = Date.now();
-    const day7 = now - 7 * 24 * 3600000;
-    const day30 = now - 30 * 24 * 3600000;
+  const isRtl = lang === "he";
+  const sevColor = { ok: { bg: "#f0fff4", border: "#6dca8a", label: "#2a6a40" }, warn: { bg: "#fffbeb", border: "#f0c040", label: "#806010" }, critical: { bg: "#fff0f0", border: "#e08080", label: "#a01010" } };
 
-    const stats = loggers.map(lg => {
-      const series = timeData[lg.id] || [];
-      if (!series.length) return null;
-      const all = series.map(r => r.temp);
-      const recent7 = series.filter(r => new Date(r.ts).getTime() > day7).map(r => r.temp);
-      const prev30 = series.filter(r => { const t = new Date(r.ts).getTime(); return t > day30 && t <= day7; }).map(r => r.temp);
-      const mean = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
-      const variance = arr => { const m = mean(arr); return arr.length ? arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length : 0; };
-      // Detect oscillation pattern (proxy for compressor cycling)
-      let crossings = 0;
-      const mid = mean(all);
-      for (let i = 1; i < all.length; i++) if ((all[i-1]-mid)*(all[i]-mid) < 0) crossings++;
-      const oscRate = crossings / (all.length || 1);
-      // Recent slope (last 48 readings)
-      const tail = all.slice(-48);
-      const slope = tail.length > 1 ? (tail[tail.length-1] - tail[0]) / tail.length : 0;
-      // Time to critical (temp > tempRange.max + 5)
-      const critical = tempRange.max + 5;
-      const timeToCrit = slope > 0 ? ((critical - (all[all.length-1]||0)) / slope) * 15 : null; // in minutes
-
-      return {
-        id: lg.id, name: lg.name, z: lg.z,
-        mean7: mean(recent7)?.toFixed(2),
-        mean30: mean(prev30)?.toFixed(2),
-        variance7: variance(recent7).toFixed(3),
-        currentTemp: all[all.length-1]?.toFixed(2),
-        maxEver: Math.max(...all).toFixed(2),
-        minEver: Math.min(...all).toFixed(2),
-        oscRate: oscRate.toFixed(4),
-        slope: slope.toFixed(4),
-        timeToCritMin: timeToCrit ? Math.round(timeToCrit) : null,
-        totalReadings: all.length,
-        isFlatLine: variance(recent7) < 0.01,
-      };
-    }).filter(Boolean);
-
-    const doors = elements.filter(e => e.type === "door").map(e => e.label).join(", ") || "unspecified";
-    const langNote = lang === "pt" ? "Respond in Brazilian Portuguese." : lang === "he" ? "Respond in Hebrew." : "Respond in English.";
-
-    const sensorLines = stats.map(s =>
-      "• " + s.id + ' "' + s.name + '": now=' + s.currentTemp + "°C | 7d-avg=" + s.mean7 + "° | 30d-avg=" + s.mean30 + "° | 7d-variance=" + s.variance7 + " | slope=" + s.slope + "°/reading | osc-rate=" + s.oscRate + " | flat-line=" + s.isFlatLine + " | time-to-critical=" + (s.timeToCritMin ?? "N/A") + " min"
-    ).join("\n");
-    return "COLD ROOM STATISTICAL SUMMARY\nRoom: " + room.w + "x" + room.d + "x" + room.h + "m | OK range: " + tempRange.min + "-" + tempRange.max + "C | Doors: " + doors + "\n\nPer-sensor stats:\n" + sensorLines + "\n\n" + langNote;
-  }
-
-
+  return (
+    <div style={{ direction: isRtl ? "rtl" : "ltr", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+      {insights.map((ins, i) => {
+        const s = sevColor[ins.severity] || sevColor.ok;
+        return (
+          <div key={i} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 10, padding: "12px" }}>
+            <div style={{ fontWeight: 700, fontSize: 11, color: s.label }}>{ins.icon} {ins.category}</div>
+            {ins.loading ? (
+              <div style={{ fontSize: 12, color: "#90a8c0", marginTop: 8, animation: "pulse 1.5s infinite" }}>Analyzing...</div>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, marginTop: 5 }}>{ins.finding}</div>
+                <div style={{ fontSize: 11, marginTop: 5, borderTop: `1px solid ${s.border}`, paddingTop: 5 }}>→ {ins.conclusion}</div>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 async function fetchInsights() {
     setLoading(true); setError(false); setInsights(null);

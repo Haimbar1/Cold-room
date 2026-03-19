@@ -605,8 +605,23 @@ function SmartInsights({ loggers, elements, timeData, room, tempRange, lang }) {
   );
 }
 
-async function fetchInsights() {
-    setLoading(true); setError(false); setInsights(null);
+function SmartInsights({ loggers, timeData, room, tempRange, lang }) {
+  const [insights, setInsights] = useState([
+    { icon: "🔧", category: "Predictive Maintenance", severity: "ok", finding: "", conclusion: "", loading: false },
+    { icon: "🚪", category: "Door Efficiency", severity: "ok", finding: "", conclusion: "", loading: false },
+    { icon: "⏱", category: "Survival Forecast", severity: "ok", finding: "", conclusion: "", loading: false },
+    { icon: "⚡", category: "Energy Optimization", severity: "ok", finding: "", conclusion: "", loading: false }
+  ]);
+
+  const isRtl = lang === "he";
+
+  // Function to fetch just one category
+  const fetchSingleCategory = async (categoryName) => {
+    // 1. Mark this specific card as loading
+    setInsights(prev => prev.map(ins => 
+      ins.category === categoryName ? { ...ins, loading: true } : ins
+    ));
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -614,80 +629,69 @@ async function fetchInsights() {
         body: JSON.stringify({
           jsonMode: true,
           messages: [
-            { role: "system", content: "You are an industrial cold room analyst. Return ONLY a JSON array of 4 objects with: icon, category, finding, conclusion, severity (ok|warn|critical)." },
+            { role: "system", content: `You are a cold room expert. Analyze data ONLY for ${categoryName}. Return ONLY a JSON object: {"finding": "...", "conclusion": "...", "severity": "ok"|"warn"|"critical"}` },
             { role: "user", content: buildStatsContext() }
           ]
         })
       });
       const d = await res.json();
-      const parsed = JSON.parse(d.choices[0].message.content);
-      // If OpenAI wraps it in a root object like { "insights": [...] }
-      const finalData = Array.isArray(parsed) ? parsed : (parsed.insights || []);
-      setInsights(finalData); 
-      if (onInsights) onInsights(finalData);
-    } catch(e) { setError(true); }
-    setLoading(false);
-  }
+      const result = JSON.parse(d.choices[0].message.content);
 
+      // 2. Update just this card with the result
+      setInsights(prev => prev.map(ins => 
+        ins.category === categoryName ? { ...ins, ...result, loading: false } : ins
+      ));
+    } catch (e) {
+      setInsights(prev => prev.map(ins => 
+        ins.category === categoryName ? { ...ins, loading: false, finding: "Analysis timeout or error." } : ins
+      ));
+    }
+  };
 
-  
+  // Trigger all 4 in parallel on load
+  useEffect(() => {
+    if (timeData && loggers.length) {
+      insights.forEach(ins => fetchSingleCategory(ins.category));
+    }
+  }, [lang]);
 
-  useEffect(() => { if (timeData && loggers.length) fetchInsights(); }, [lang]);
-
-  const sevColor = { ok: { bg: "#f0fff4", border: "#6dca8a", icon: "#2a8a50", label: "#2a6a40" }, warn: { bg: "#fffbeb", border: "#f0c040", icon: "#a07010", label: "#806010" }, critical: { bg: "#fff0f0", border: "#e08080", icon: "#c02020", label: "#a01010" } };
-  const title = lang === "pt" ? "🤖 SmartInsights — Resumo Inteligente" : lang === "he" ? "🤖 SmartInsights — תובנות חכמות" : "🤖 SmartInsights — Intelligent Summary";
-  const refreshLabel = lang === "pt" ? "↻ Atualizar" : lang === "he" ? "↻ רענן" : "↻ Refresh";
-  const loadingLabel = lang === "pt" ? "Analisando dados..." : lang === "he" ? "מנתח נתונים..." : "Analyzing data...";
+  const sevColor = { 
+    ok: { bg: "#f0fff4", border: "#6dca8a", label: "#2a6a40" }, 
+    warn: { bg: "#fffbeb", border: "#f0c040", label: "#806010" }, 
+    critical: { bg: "#fff0f0", border: "#e08080", label: "#a01010" } 
+  };
 
   return (
     <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <h3 style={{ margin: 0, color: "#1a3a7a", fontSize: 15, fontWeight: 700 }}>{title}</h3>
-        <button onClick={fetchInsights} disabled={loading} style={{ background: "#f0f4ff", border: "1.5px solid #b0c8f0", color: "#3060b0", borderRadius: 7, padding: "5px 14px", cursor: loading ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600 }}>{loading ? "..." : refreshLabel}</button>
-      </div>
-
-      {loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {[1,2,3,4].map(i => (
-            <div key={i} style={{ background: "#f5f7fb", border: "1.5px solid #e0e8f4", borderRadius: 10, padding: "14px 16px", animation: "pulse 1.5s ease-in-out infinite" }}>
-              <div style={{ height: 12, background: "#e0e8f4", borderRadius: 6, width: "40%", marginBottom: 8 }} />
-              <div style={{ height: 10, background: "#e8eef8", borderRadius: 6, width: "90%", marginBottom: 6 }} />
-              <div style={{ height: 10, background: "#e8eef8", borderRadius: 6, width: "75%" }} />
-            </div>
-          ))}
-          <div style={{ textAlign: "center", color: "#8090b0", fontSize: 12, marginTop: 4 }}>{loadingLabel}</div>
-        </div>
-      )}
-
-      {error && (
-        <div style={{ background: "#fff0f0", border: "1.5px solid #e08080", borderRadius: 10, padding: 16, color: "#a02020", fontSize: 13, textAlign: "center" }}>
-          {lang === "pt" ? "Erro ao carregar insights. " : lang === "he" ? "שגיאה בטעינת תובנות. " : "Failed to load insights. "}
-          <button onClick={fetchInsights} style={{ background: "none", border: "none", color: "#3060c0", cursor: "pointer", textDecoration: "underline", fontSize: 13 }}>{refreshLabel}</button>
-        </div>
-      )}
-
-      {insights && !loading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {insights.map((ins, i) => {
-            const s = sevColor[ins.severity] || sevColor.ok;
-            return (
-              <div key={i} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 10, padding: "12px 16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 18 }}>{ins.icon}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: s.label, textTransform: "uppercase", letterSpacing: 0.4 }}>{ins.category}</span>
-                  <span style={{ marginInlineStart: "auto", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: s.border, color: ins.severity === "ok" ? "#fff" : "#fff", opacity: 0.9 }}>
-                    {ins.severity === "ok" ? "✓" : ins.severity === "warn" ? "⚠" : "🔴"}
-                  </span>
-                </div>
-                <div style={{ fontSize: 13, color: "#2a3a50", lineHeight: 1.6, marginBottom: 5 }}>{ins.finding}</div>
-                <div style={{ fontSize: 12, color: s.label, fontWeight: 600, lineHeight: 1.5, borderTop: `1px solid ${s.border}`, paddingTop: 6, marginTop: 4 }}>
-                  → {ins.conclusion}
-                </div>
+      <h3 style={{ margin: "0 0 14px 0", color: "#1a3a7a", fontSize: 15, fontWeight: 700 }}>
+        {isRtl ? "🤖 SmartInsights — תובנות חכמות" : "🤖 SmartInsights — Intelligent Summary"}
+      </h3>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+        {insights.map((ins, i) => {
+          const s = sevColor[ins.severity] || sevColor.ok;
+          return (
+            <div key={i} style={{ background: s.bg, border: `1.5px solid ${s.border}`, borderRadius: 10, padding: "12px" }}>
+              <div style={{ fontWeight: 700, fontSize: 11, color: s.label, display: "flex", alignItems: "center", gap: 5 }}>
+                <span>{ins.icon}</span> {ins.category}
               </div>
-            );
-          })}
-        </div>
-      )}
+              
+              {ins.loading ? (
+                <div style={{ fontSize: 12, color: "#90a8c0", marginTop: 8 }}>{isRtl ? "מנתח..." : "Analyzing..."}</div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 13, marginTop: 5, color: "#2a3a50" }}>{ins.finding}</div>
+                  {ins.conclusion && (
+                    <div style={{ fontSize: 11, marginTop: 5, borderTop: `1px solid ${s.border}`, paddingTop: 5, fontWeight: 600 }}>
+                      → {ins.conclusion}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

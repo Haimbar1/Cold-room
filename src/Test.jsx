@@ -1079,46 +1079,203 @@ export default function App() {
   const inpS = { background: "#fff", border: "1.5px solid #b8d0e8", color: "#1a2a4a", borderRadius: 6, padding: "7px 10px", fontSize: 13, outline: "none", width: "100%" };
   const cbtn = { background: "#f0f5ff", border: "1.5px solid #c0d4f0", color: "#3060b0", borderRadius: 7, padding: "6px 14px", cursor: "pointer", fontSize: 15 };
 
-return (
-  <div style={{ minHeight: "100vh", background: "#f0f2f5", color: "#1a2a4a", fontFamily: "system-ui, sans-serif" }}>
-    {/* Header stays full width but content inside is centered */}
-    <header style={{ background: "#fff", borderBottom: "1px solid #d0dcea", padding: "12px 0", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+  return (
+    <div style={{ minHeight: "100vh", background: "#eef2f8", color: "#1a2a4a", fontFamily: "'Segoe UI', Tahoma, sans-serif", direction: isRtl ? "rtl" : "ltr" }}>
+      {/* Header */}
+      <div style={{ background: "#fff", borderBottom: "1.5px solid #d0dcea", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 8px rgba(100,140,200,0.1)", position: "sticky", top: 0, zIndex: 20 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#1a3a7a" }}>❄️ {t.appName}</h1>
-          <div style={{ fontSize: 10, color: "#7090b0" }}>{t.appSub}</div>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a3a7a" }}>❄ {t.appName}</h1>
+          <div style={{ fontSize: 11, color: "#7090b0" }}>{t.appSub}</div>
         </div>
-        <nav style={{ display: "flex", gap: 8 }}>
-          {[["monitor", t.tabMonitor], ["settings", t.tabSettings], ["ai", t.tabAI]].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ 
-              background: tab === id ? "#1a3a7a" : "#f0f4fa", 
-              color: tab === id ? "#fff" : "#5070a0",
-              border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontWeight: 600, fontSize: 13
-            }}>{label}</button>
-          ))}
-        </nav>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Language switcher */}
+          <div style={{ display: "flex", gap: 4, background: "#f0f4fa", borderRadius: 8, padding: 3 }}>
+            {[["pt", "🇧🇷 PT"], ["en", "🇺🇸 EN"], ["he", "🇮🇱 עב"]].map(([code, label]) => (
+              <button key={code} onClick={() => setLang(code)} style={{ background: lang === code ? "#fff" : "transparent", border: lang === code ? "1px solid #c0d4f0" : "1px solid transparent", color: lang === code ? "#1a3a7a" : "#7090b0", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, fontWeight: lang === code ? 700 : 400, boxShadow: lang === code ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>{label}</button>
+            ))}
+          </div>
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: 4 }}>
+            {[["monitor", t.tabMonitor], ["settings", t.tabSettings], ["ai", t.tabAI]].map(([id, label]) => (
+              <button key={id} onClick={() => setTab(id)} style={{ background: tab === id ? "#1a3a7a" : "#f0f4fa", border: `1.5px solid ${tab === id ? "#1a3a7a" : "#c0d4f0"}`, color: tab === id ? "#fff" : "#5070a0", borderRadius: 8, padding: "7px 16px", cursor: "pointer", fontSize: 13, fontWeight: tab === id ? 700 : 400 }}>{label}</button>
+            ))}
+          </div>
+        </div>
       </div>
-    </header>
 
-    {/* Main Content Area - Centered and Constrained */}
-    <main style={{ maxWidth: 1100, margin: "20px auto", padding: "0 20px" }}>
-       {tab === "monitor" && (
-         <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20 }}>
-            <div style={{ background: "#fff", padding: 20, borderRadius: 12, border: "1px solid #d0dcea" }}>
-               <Heatmap loggers={loggers} timeData={timeData} frameIdx={frameIdx} lo={tr.min} hi={tr.max} onClick={setSel} sel={sel} interp={interp} />
-            </div>
-            {/* Sidebar for stats or selected logger */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
-               {/* Place your stats boxes or selected logger card here */}
-            </div>
-         </div>
-       )}
+      <div style={{ padding: "18px 20px" }}>
 
-       {tab === "ai" && (
-         <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #d0dcea", height: "75vh", display: "flex", overflow: "hidden" }}>
-            <AIChat loggers={loggers} timeData={timeData} frameIdx={frameIdx} room={room} tempRange={tr} lang={lang} />
-         </div>
-       )}
-    </main>
-  </div>
-);
+        {/* ─── MONITOR ─── */}
+        {tab === "monitor" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {stats && (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {[
+                  { l: t.min, v: `${stats.min}°C`, c: "#2060c0" },
+                  { l: t.max, v: `${stats.max}°C`, c: "#d04010" },
+                  { l: t.avg, v: `${stats.avg}°C`, c: "#208050" },
+                  { l: t.spread, v: `${stats.spread}°C`, c: parseFloat(stats.spread) > 3 ? "#c02020" : "#208050" },
+                  { l: t.loggers, v: loggers.length, c: "#5070a0" },
+                  { l: t.time, v: curTime ? new Date(curTime).toLocaleString(t.locales) : "—", c: "#708090" },
+                ].map((s, i) => (
+                  <div key={i} style={{ background: "#fff", border: "1.5px solid #d8e8f8", borderRadius: 9, padding: "7px 16px", boxShadow: "0 1px 4px rgba(100,140,200,0.07)" }}>
+                    <div style={{ fontSize: 10, color: "#90a8c0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>{s.l}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: s.c, fontFamily: "monospace", marginTop: 2 }}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <Legend lo={tr.min} hi={tr.max} t={t} />
+                  <button onClick={() => setInterp(v => !v)} style={{ ...cbtn, background: interp ? "#e8f0ff" : "#f5f5f5", color: interp ? "#2050a0" : "#909090", fontSize: 12 }}>{t.heatmap}</button>
+                </div>
+                <Heatmap loggers={loggers} elements={elements} timeData={timeData} frameIdx={frameIdx} lo={tr.min} hi={tr.max} onClick={setSel} sel={sel} interp={interp} />
+              </div>
+              {sel && (
+                <div style={{ width: 220, ...card, flexShrink: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ color: "#8090b0", fontSize: 11, fontWeight: 600 }}>{t.selected}</span>
+                    <button onClick={() => setSel(null)} style={{ background: "none", border: "none", color: "#a0b0c0", cursor: "pointer", fontSize: 16 }}>✕</button>
+                  </div>
+                  <div style={{ fontFamily: "monospace", fontSize: 17, color: "#1a3a7a", fontWeight: 700 }}>{sel.id}</div>
+                  <div style={{ fontSize: 11, color: "#5070a0", marginBottom: 10, lineHeight: 1.5 }}>{sel.name}</div>
+                  {selReading && (() => {
+                    const series = timeData[sel.id] || [];
+                    const allTemps = series.map(r => r.temp);
+                    const seriesMin = allTemps.length ? Math.min(...allTemps) : selReading.temp;
+                    const seriesMax = allTemps.length ? Math.max(...allTemps) : selReading.temp;
+                    const exceedsHigh = seriesMax > tr.max;
+                    const exceedsLow  = seriesMin < tr.min;
+                    const nowOk = selReading.temp >= tr.min && selReading.temp <= tr.max;
+                    // Overall status: based on CURRENT reading + warn if series had violations
+                    const nowStatus = selReading.temp < tr.min ? "low" : selReading.temp > tr.max ? "high" : "ok";
+                    const historyAlert = (exceedsHigh || exceedsLow) && nowStatus === "ok";
+                    return <>
+                      <div style={{ fontSize: 32, fontWeight: 800, color: tColor(selReading.temp, tr.min, tr.max), fontFamily: "monospace" }}>{selReading.temp.toFixed(2)}°C</div>
+                      <div style={{ fontSize: 14, color: "#4070a0", marginBottom: 6 }}>💧 {selReading.hum.toFixed(1)}% {t.humidity}</div>
+                      <div style={{ fontSize: 10, color: "#a0b0c0", marginBottom: 10 }}>{new Date(selReading.ts).toLocaleString(t.locales)}</div>
+                      <MiniChart series={series} lo={tr.min} hi={tr.max} />
+                      {/* Series min/max row */}
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, marginBottom: 4, fontSize: 11 }}>
+                        <span style={{ color: seriesMin < tr.min ? "#c04010" : "#5080a0" }}>
+                          ↓ {seriesMin.toFixed(1)}°
+                        </span>
+                        <span style={{ color: "#8090a0", fontSize: 10 }}>
+                          {lang === "pt" ? "série" : lang === "he" ? "סדרה" : "series"}
+                        </span>
+                        <span style={{ color: seriesMax > tr.max ? "#c04010" : "#5080a0" }}>
+                          ↑ {seriesMax.toFixed(1)}°
+                        </span>
+                      </div>
+                      {/* Current frame status */}
+                      <div style={{ padding: "6px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600,
+                        background: nowStatus === "low" ? "#e8f4ff" : nowStatus === "high" ? "#fff0e8" : "#e8fff0",
+                        color: nowStatus === "low" ? "#1060c0" : nowStatus === "high" ? "#c04010" : "#108040",
+                        border: `1.5px solid ${nowStatus === "low" ? "#90c0f0" : nowStatus === "high" ? "#f0a070" : "#70d090"}` }}>
+                        {nowStatus === "low" ? t.belowRange : nowStatus === "high" ? t.aboveRange : t.inRange}
+                        <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7, marginInlineStart: 4 }}>
+                          ({lang === "pt" ? "agora" : lang === "he" ? "עכשיו" : "now"})
+                        </span>
+                      </div>
+                      {/* History violation warning */}
+                      {historyAlert && (
+                        <div style={{ marginTop: 5, padding: "5px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600,
+                          background: "#fff3e0", color: "#b05000", border: "1.5px solid #f0a030" }}>
+                          ⚠ {exceedsHigh && `${lang === "pt" ? "Máx histórico" : lang === "he" ? "מקס היסטורי" : "Historic max"}: ${seriesMax.toFixed(1)}°`}
+                          {exceedsHigh && exceedsLow ? " / " : ""}
+                          {exceedsLow && `${lang === "pt" ? "Mín histórico" : lang === "he" ? "מינ היסטורי" : "Historic min"}: ${seriesMin.toFixed(1)}°`}
+                        </div>
+                      )}
+                    </>;
+                  })()}
+                </div>
+              )}
+            </div>
+            {/* Timeline */}
+            <div style={card}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <button onClick={() => setFrameIdx(0)} style={cbtn}>⏮</button>
+                <button onClick={() => setFrameIdx(f => Math.max(0, f - 96))} style={cbtn}>⏪</button>
+                <button onClick={() => setPlaying(p => !p)} style={{ ...cbtn, background: playing ? "#e8fff0" : "#eef2ff", color: playing ? "#108040" : "#2050c0", minWidth: 44 }}>{playing ? "⏸" : "▶"}</button>
+                <button onClick={() => setFrameIdx(f => Math.min(total - 1, f + 96))} style={cbtn}>⏩</button>
+                <button onClick={() => setFrameIdx(total - 1)} style={cbtn}>⏭</button>
+                <span style={{ fontSize: 11, color: "#90a8c0", fontWeight: 600 }}>{t.speed}</span>
+                {[0.5, 1, 2, 5, 10].map(s => <button key={s} onClick={() => setSpeed(s)} style={{ ...cbtn, background: speed === s ? "#1a3a7a" : "#f0f4fa", color: speed === s ? "#fff" : "#5070a0", fontWeight: speed === s ? 700 : 400, fontSize: 12, padding: "5px 10px" }}>{s}×</button>)}
+              </div>
+              <input type="range" min={0} max={total - 1} value={frameIdx} onChange={e => { setPlaying(false); setFrameIdx(+e.target.value); }} style={{ width: "100%", accentColor: "#2050c0", height: 5 }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#a0b4c8", marginTop: 5 }}>
+                <span>{firstSeries?.[0] ? new Date(firstSeries[0].ts).toLocaleDateString(t.locales) : ""}</span>
+                <span style={{ color: "#7090b0", fontWeight: 600 }}>{t.frame} {frameIdx + 1} / {total}</span>
+                <span>{firstSeries?.length ? new Date(firstSeries[firstSeries.length - 1].ts).toLocaleDateString(t.locales) : ""}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── SETTINGS ─── */}
+        {tab === "settings" && (
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 270px", ...card }}>
+              <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.roomDims}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+                {[["w", t.width], ["d", t.depth], ["h", t.height]].map(([k, label]) => (
+                  <label key={k} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <span style={{ fontSize: 11, color: "#7090b0", fontWeight: 600 }}>{label}</span>
+                    <input type="number" value={room[k]} min={1} max={200} step={0.5} onChange={e => setRoom(d => ({ ...d, [k]: parseFloat(e.target.value) || d[k] }))} style={inpS} />
+                  </label>
+                ))}
+              </div>
+              <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.tempRange}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontSize: 11, color: "#7090b0", fontWeight: 600 }}>{t.min} (°C)</span><input type="number" value={tr.min} step={0.5} onChange={e => setTr(r => ({ ...r, min: parseFloat(e.target.value) || r.min }))} style={inpS} /></label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontSize: 11, color: "#7090b0", fontWeight: 600 }}>{t.max} (°C)</span><input type="number" value={tr.max} step={0.5} onChange={e => setTr(r => ({ ...r, max: parseFloat(e.target.value) || r.max }))} style={inpS} /></label>
+              </div>
+            </div>
+
+            <div style={{ flex: "1 1 270px", ...card }}>
+              <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.importFiles}</h3>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: "#5070a0", fontWeight: 600, marginBottom: 4 }}>{t.posFile}</div>
+                <div style={{ fontSize: 10, color: "#90a8c0", marginBottom: 8 }}>{t.posFileDesc}</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <div style={{ background: "#f0f4ff", border: "1.5px solid #b0c8e8", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#3060a0", fontWeight: 600 }}>{t.chooseFile}</div>
+                  <span style={{ fontSize: 11, color: "#90a8c0" }}>{posFile || t.noFile}</span>
+                  <input type="file" accept=".xlsx,.xls" onChange={handlePos} style={{ display: "none" }} />
+                </label>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: "#5070a0", fontWeight: 600, marginBottom: 4 }}>{t.tempFileLabel}</div>
+                <div style={{ fontSize: 10, color: "#90a8c0", marginBottom: 8 }}>{t.tempFileDesc}</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <div style={{ background: "#f0f4ff", border: "1.5px solid #b0c8e8", borderRadius: 6, padding: "5px 12px", fontSize: 12, color: "#3060a0", fontWeight: 600 }}>{t.chooseFile}</div>
+                  <span style={{ fontSize: 11, color: "#90a8c0" }}>{tempFile || t.noFile}</span>
+                  <input type="file" accept=".xlsx,.xls" onChange={handleTemp} style={{ display: "none" }} />
+                </label>
+              </div>
+              {msg && <div style={{ background: "#e8fff0", border: "1px solid #80d0a0", borderRadius: 7, padding: "7px 12px", fontSize: 12, color: "#208050", marginBottom: 12 }}>{msg}</div>}
+              <button onClick={() => { setLoggers(DEMO_LOGGERS); setElements(DEMO_ELEMENTS); setTimeData(genDemo(DEMO_LOGGERS)); setFrameIdx(0); setMsg(t.demoLoaded); }} style={{ background: "#fff8e8", border: "1.5px solid #e0c070", color: "#907020", borderRadius: 7, padding: "6px 16px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>{t.loadDemo}</button>
+            </div>
+
+            <div style={{ flex: "1 1 100%", ...card }}>
+              <h3 style={{ margin: "0 0 12px", color: "#1a3a7a", fontSize: 14 }}>{t.placement}</h3>
+              <Placer loggers={loggers} setLoggers={setLoggers} elements={elements} setElements={setElements} room={room} lang={lang} />
+            </div>
+          </div>
+        )}
+
+        {/* ─── AI ─── */}
+        {tab === "ai" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                        {/* Chat — full width below */}
+            <div style={{ ...card, minHeight: 480 }}>
+              <h3 style={{ margin: "0 0 14px", color: "#1a3a7a", fontSize: 14 }}>{t.aiExpert}</h3>
+              <AIChat loggers={loggers} elements={elements} timeData={timeData} frameIdx={frameIdx} room={room} tempRange={tr} lang={lang} sharedInsights={sharedInsights} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
